@@ -3,59 +3,136 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     function signedIn() { return request.auth != null; }
-    function eventPath(eventId) { return /databases/$(database)/documents/events/$(eventId); }
-    // เจ้าของเว็บ (ล็อกอิน Google ด้วยอีเมลนี้เท่านั้น) หรือคนที่อยู่ใน admins/{uid}
-    function isGlobalAdmin() {
-      return signedIn() && (
-        (request.auth.token.email == 'mstandad@gmail.com' && request.auth.token.email_verified == true)
-        || exists(/databases/$(database)/documents/admins/$(request.auth.uid))
-      );
+    function me() { return request.auth.uid; }
+    function evPath(eventId) { return /databases/$(database)/documents/events/$(eventId); }
+    function sub(eventId, coll, id) { return /databases/$(database)/documents/events/$(eventId)/$(coll)/$(id); }
+
+    // เจ้าของเว็บ: เช็กจาก SHA-256 ของอีเมล (ไม่เก็บอีเมลในไฟล์นี้) หรือมีเอกสาร admins/{uid}
+    function isSiteOwner() {
+      return signedIn()
+        && 'email' in request.auth.token
+        && request.auth.token.get('email_verified', false) == true
+        && hashing.sha256(request.auth.token.email.lower().toUtf8()).toHexString().lower()
+           == '1675e5cce02c5a97bebc836cba92ea1fa9b2e10bcdd50bb8f2e6e87a2710dc31';
     }
-    // แอดมินของนัด: คนสร้างนัด, คนที่ใส่รหัสแอดมินถูก, หรือแอดมินรวม
+    function isGlobalAdmin() {
+      return signedIn() && (isSiteOwner() || exists(/databases/$(database)/documents/admins/$(me())));
+    }
+    // แอดมินของนัด: คนสร้าง, คนที่ใส่รหัสถูก, หรือแอดมินรวม
     function isEventAdmin(eventId) {
       return signedIn() && (
         isGlobalAdmin()
-        || exists(/databases/$(database)/documents/events/$(eventId)/admins/$(request.auth.uid))
-        || (exists(eventPath(eventId)) && get(eventPath(eventId)).data.owner == request.auth.uid)
+        || exists(sub(eventId, 'admins', me()))
+        || (exists(evPath(eventId)) && get(evPath(eventId)).data.owner == me())
       );
     }
+    // ยังไม่เลยวันปิดรับ (เวลาไทย) หรือเป็นแอดมิน
+    function beforeDeadline(d) {
+      return d == '' || request.time < timestamp.value(d + 'T23:59:59+07:00');
+    }
+    function openForEdits(eventId) {
+      return !exists(evPath(eventId))
+        || beforeDeadline(get(evPath(eventId)).data.get('deadline', ''))
+        || isEventAdmin(eventId);
+    }
+    function isDate(v) { return v is string && v.matches('^([0-9]{4}-[0-9]{2}-[0-9]{2})?$'); }
+    function str(m, k, n) { return m.get(k, '') is string && m.get(k, '').size() <= n; }
 
-    // ---------- ข้อมูลนัด ----------
+    // ---------- นัด ----------
     match /events/{eventId} {
       allow read: if true;
 
-      // คนแรกที่สร้างเป็นเจ้าของ
       allow create: if signedIn()
         && request.resource.data.keys().hasOnly(['owner', 'name', 'hasCode', 'createdAt'])
-        && request.resource.data.owner == request.auth.uid
+        && request.resource.data.owner == me()
         && request.resource.data.name is string
         && request.resource.data.name.size() <= 60;
 
-      // แอดมินของนัดแก้ได้เฉพาะ confirmed (วันที่ยืนยัน) และ hasCode
+      // แอดมินของนัดแก้ได้: วันยืนยัน รายละเอียด ช่วงวัน วันปิดรับ รายชื่อคนที่ควรมา
       allow update: if isEventAdmin(eventId)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['confirmed', 'hasCode'])
-        && (!('confirmed' in request.resource.data)
-            || (request.resource.data.confirmed is list && request.resource.data.confirmed.size() <= 60));
+        && request.resource.data.diff(resource.data).affectedKeys()
+           .hasOnly(['confirmed', 'hasCode', 'title', 'place', 'time', 'desc', 'rangeStart', 'rangeEnd', 'deadline', 'expected'])
+        && request.resource.data.get('confirmed', []) is list
+        && request.resource.data.get('confirmed', []).size() <= 60
+        && request.resource.data.get('expected', []) is list
+        && request.resource.data.get('expected', []).size() <= 100
+        && str(request.resource.data, 'title', 60)
+        && str(request.resource.data, 'place', 80)
+        && str(request.resource.data, 'time', 40)
+        && str(request.resource.data, 'desc', 300)
+        && isDate(request.resource.data.get('rangeStart', ''))
+        && isDate(request.resource.data.get('rangeEnd', ''))
+        && isDate(request.resource.data.get('deadline', ''));
 
-      allow delete: if isGlobalAdmin();
+      allow delete: if isEventAdmin(eventId);
 
-      // วันว่างของแต่ละคน: ทุกคนอ่านได้ เขียนได้เฉพาะของตัวเอง
+      // วันว่างของแต่ละคน
+      // days  = "2026-11-10,2026-11-12@e"  (@ = ช่วงเวลา m เช้า a บ่าย e เย็น)
+      // maybe = "2026-11-14"
       match /people/{uid} {
         allow read: if true;
         allow create, update: if signedIn()
-          && request.auth.uid == uid
-          && request.resource.data.keys().hasOnly(['name', 'dates', 'updatedAt'])
+          && me() == uid
+          && openForEdits(eventId)
+          && request.resource.data.keys().hasOnly(['name', 'note', 'days', 'maybe', 'hasPin', 'updatedAt'])
           && request.resource.data.name is string
           && request.resource.data.name.size() > 0
           && request.resource.data.name.size() <= 40
-          && request.resource.data.dates is list
-          && request.resource.data.dates.size() <= 400;
-        allow delete: if signedIn() && (request.auth.uid == uid || isEventAdmin(eventId));
+          && str(request.resource.data, 'note', 80)
+          && request.resource.data.get('hasPin', false) is bool
+          && request.resource.data.get('days', '') is string
+          && request.resource.data.get('days', '').size() <= 6000
+          && request.resource.data.get('days', '').matches('^([0-9]{4}-[0-9]{2}-[0-9]{2}(@[mae]{1,3})?(,[0-9]{4}-[0-9]{2}-[0-9]{2}(@[mae]{1,3})?)*)?$')
+          && request.resource.data.get('maybe', '') is string
+          && request.resource.data.get('maybe', '').size() <= 4500
+          && request.resource.data.get('maybe', '').matches('^([0-9]{4}-[0-9]{2}-[0-9]{2}(,[0-9]{4}-[0-9]{2}-[0-9]{2})*)?$');
+        allow delete: if signedIn() && (
+          me() == uid
+          || isEventAdmin(eventId)
+          || (exists(sub(eventId, 'claims', me())) && get(sub(eventId, 'claims', me())).data.from == uid)
+        );
       }
 
-      // รหัสแอดมิน: อ่านได้เฉพาะเจ้าของเว็บ
-      // คนสร้างนัดตั้งได้ครั้งเดียว เจ้าของเว็บตั้งใหม่ได้ทุกเมื่อ
-      // hash ต้องตรงกับ code เสมอ (กันใส่ค่าไม่ตรงกัน)
+      // แฮช PIN ของแต่ละคน (ไว้ย้ายเครื่อง): ไม่มีใครอ่านได้
+      match /pins/{uid} {
+        allow read: if false;
+        allow create, update: if signedIn() && me() == uid
+          && request.resource.data.keys().hasOnly(['hash'])
+          && request.resource.data.hash is bytes
+          && request.resource.data.hash.size() == 32;
+        allow delete: if signedIn() && (
+          me() == uid
+          || isEventAdmin(eventId)
+          || (exists(sub(eventId, 'claims', me())) && get(sub(eventId, 'claims', me())).data.from == uid)
+        );
+      }
+
+      // ขอย้ายชื่อมาเครื่องนี้: สร้างได้เมื่อ PIN ถูก
+      match /claims/{uid} {
+        allow read, delete: if signedIn() && me() == uid;
+        allow create: if signedIn() && me() == uid
+          && request.resource.data.keys().hasOnly(['from', 'pin'])
+          && request.resource.data.from is string
+          && request.resource.data.pin is string
+          && request.resource.data.pin.size() >= 4
+          && request.resource.data.pin.size() <= 12
+          && exists(sub(eventId, 'pins', request.resource.data.from))
+          && hashing.sha256((eventId + ':' + request.resource.data.from + ':' + request.resource.data.pin).toUtf8())
+             == get(sub(eventId, 'pins', request.resource.data.from)).data.hash;
+        allow update: if false;
+      }
+
+      // ใครออนไลน์อยู่
+      match /presence/{uid} {
+        allow read: if true;
+        allow create, update: if signedIn() && me() == uid
+          && request.resource.data.keys().hasOnly(['name', 'at'])
+          && str(request.resource.data, 'name', 40)
+          && request.resource.data.at == request.time;
+        allow delete: if signedIn() && (me() == uid || isEventAdmin(eventId));
+      }
+
+      // รหัสแอดมิน: อ่านได้เฉพาะเจ้าของเว็บ, hash ต้องตรงกับ code
       function validSecret() {
         return request.resource.data.keys().hasOnly(['hash', 'code'])
           && request.resource.data.hash is bytes
@@ -69,16 +146,15 @@ service cloud.firestore {
       match /secret/admin {
         allow read: if isGlobalAdmin();
         allow create: if signedIn() && validSecret()
-          && (getAfter(eventPath(eventId)).data.owner == request.auth.uid || isGlobalAdmin());
+          && (getAfter(evPath(eventId)).data.owner == me() || isGlobalAdmin());
         allow update: if isGlobalAdmin() && validSecret();
-        allow delete: if isGlobalAdmin();
+        allow delete: if isEventAdmin(eventId);
       }
 
-      // คนที่ใส่รหัสแอดมินถูก: สร้างได้เมื่อรหัสตรงกับแฮช
+      // คนที่ใส่รหัสแอดมินถูก
       match /admins/{uid} {
-        allow read: if signedIn() && (request.auth.uid == uid || isGlobalAdmin());
-        allow create: if signedIn()
-          && request.auth.uid == uid
+        allow read: if signedIn() && (me() == uid || isEventAdmin(eventId));
+        allow create: if signedIn() && me() == uid
           && request.resource.data.keys().hasOnly(['code', 'at'])
           && request.resource.data.code is string
           && request.resource.data.code.size() >= 4
@@ -87,17 +163,16 @@ service cloud.firestore {
           && hashing.sha256((eventId + ':' + request.resource.data.code).toUtf8())
              == get(/databases/$(database)/documents/events/$(eventId)/secret/admin).data.hash;
         allow update: if false;
-        allow delete: if signedIn() && (request.auth.uid == uid || isGlobalAdmin());
+        allow delete: if signedIn() && (me() == uid || isEventAdmin(eventId));
       }
     }
 
-    // ---------- แอดมินรวม (เพิ่มเองใน Firebase Console) ----------
+    // ---------- แอดมินรวม (เพิ่มเองใน Console) ----------
     match /admins/{uid} {
-      allow read: if signedIn() && request.auth.uid == uid;
+      allow read: if signedIn() && me() == uid;
       allow write: if false;
     }
 
-    // ปิดทุกอย่างที่เหลือ
     match /{document=**} {
       allow read, write: if false;
     }

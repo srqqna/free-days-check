@@ -111,3 +111,29 @@
 ## แอดมินรวม (ไม่จำเป็น)
 
 เพิ่มเอกสารใน Firestore > `admins` (Document ID = uid ของผู้ใช้) จะเป็นแอดมินทุกนัด
+
+---
+
+## กันบอตด้วย App Check (แนะนำ)
+
+1. เข้า https://www.google.com/recaptcha/admin/create
+   - เลือก **reCAPTCHA v3** (Score based)
+   - Domains: `srqqna.github.io`
+   - กด Submit แล้วคัดลอก **Site key** และ **Secret key**
+2. Firebase > **Security > App Check** > เลือกแอป Web > **reCAPTCHA v3** > วาง Secret key > Save
+3. ส่ง Site key ให้ผู้ดูแลโค้ด หรือแก้เองใน `index.html` บรรทัด `const APPCHECK_SITE_KEY = "";`
+4. เปิดเว็บใช้งานสัก 1–2 วัน ดูในหน้า App Check ว่าคำขอส่วนใหญ่ "Verified"
+5. แล้วค่อยกด **Enforce** ของ Cloud Firestore (ถ้ากดก่อน เว็บที่ยังไม่มี key จะใช้ไม่ได้)
+
+## ข้อมูลใน Firestore
+
+| ที่เก็บ | เนื้อหา |
+|---|---|
+| `events/{นัด}` | ชื่อ รายละเอียด ช่วงวัน วันปิดรับ วันที่ยืนยัน รายชื่อคนที่ควรมา |
+| `events/{นัด}/people/{uid}` | ชื่อ หมายเหตุ วันว่าง (`days`) วันอาจจะ (`maybe`) |
+| `events/{นัด}/presence/{uid}` | ใครเปิดหน้านัดอยู่ (อัปเดตทุก 30 วิ) |
+| `events/{นัด}/secret/admin` | รหัสแอดมิน (อ่านได้เฉพาะเจ้าของเว็บ) |
+| `events/{นัด}/admins/{uid}` | คนที่ใส่รหัสแอดมินถูก |
+| `events/{นัด}/pins/{uid}` | แฮช PIN สำหรับย้ายเครื่อง (ไม่มีใครอ่านได้) |
+
+ข้อมูลรูปแบบเก่า (`dates` แบบ list) ยังอ่านได้ และจะถูกแปลงเป็นรูปแบบใหม่เมื่อคนนั้นแก้วันครั้งถัดไป

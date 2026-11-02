@@ -1,0 +1,188 @@
+<div class="wrap">
+  <header>
+    <button class="theme" type="button" id="themebtn" aria-label="สลับโหมดมืด/สว่าง"><span id="themeicon" aria-hidden="true"></span></button>
+    <p class="eyebrow" id="eyebrow" hidden>เพื่อนว่างวันไหน</p>
+    <h1 id="title">เพื่อนว่างวันไหน</h1>
+    <div class="evinfo" id="evinfo" hidden></div>
+    <p class="sub owner" id="ownernote" hidden>คุณเป็นแอดมินของนัดนี้ ยืนยันวันและลบชื่อคนที่ลงได้</p>
+    <p class="sub" id="lead">แตะวันที่คุณว่าง แตะอีกครั้งเป็น "อาจจะ" แตะครั้งที่สามเพื่อเอาออก</p>
+    <p class="deadline" id="deadline" hidden></p>
+    <div class="live off" id="live" hidden><span class="dot" aria-hidden="true"></span><span id="livetext">กำลังเชื่อมต่อ…</span></div>
+  </header>
+
+  <div class="notice" id="notice" hidden></div>
+  <div class="confirm-banner" id="confbanner" hidden>
+    <b>ยืนยันวันแล้ว</b><span class="when" id="confwhen"></span><span class="status" id="confcount"></span>
+    <div class="calexport" id="calexport"></div>
+  </div>
+
+  <!-- ===== หน้าหลัก ===== -->
+  <section class="panel newev" id="newev" hidden>
+    <h2>สร้างนัดใหม่</h2>
+    <form class="me" id="evform">
+      <label for="evname">ชื่อนัด</label>
+      <input id="evname" maxlength="60" placeholder="เช่น ทริปเชียงใหม่, วันเกิดมิ้นท์" autocomplete="off">
+    </form>
+    <div class="me">
+      <label for="evcode">รหัสแอดมิน</label>
+      <input id="evcode" form="evform" type="password" minlength="4" maxlength="64" placeholder="อย่างน้อย 4 ตัว จำไว้ให้ดี" autocomplete="new-password">
+      <button class="copy" type="submit" form="evform" id="evsubmit">สร้างลิงก์</button>
+    </div>
+    <p class="status" id="evmsg">ใครมีรหัสแอดมิน ยืนยันวันและลบชื่อคนที่ลงได้ ใช้ได้ทุกเครื่อง</p>
+    <div class="linkout" id="linkout" hidden>
+      <input id="evlink" readonly aria-label="ลิงก์ชวนเพื่อน">
+      <div class="share">
+        <button class="copy" type="button" id="evcopy">คัดลอกลิงก์</button>
+        <a class="btn-line" id="evline" href="#" target="_blank" rel="noopener">ส่งใน LINE</a>
+        <a class="ghost" id="evopen" href="#">เปิดหน้านัดนี้</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel ownerview" id="ownerview" hidden>
+    <div class="row" id="ownerhead" hidden>
+      <h2>นัดทั้งหมด <span id="evcount" class="status"></span></h2>
+      <button class="btn2" type="button" id="signout">ออกจากระบบ</button>
+    </div>
+    <ul class="people evlist" id="evlist" hidden></ul>
+    <div class="row">
+      <button class="ghost" type="button" id="ownerlogin">เจ้าของเว็บ: เข้าสู่ระบบด้วย Google</button>
+      <span class="status" id="ownerstatus"></span>
+    </div>
+  </section>
+
+  <!-- ===== หน้านัด ===== -->
+  <div class="stack" id="eventview" hidden>
+  <details class="panel admin" id="adminbox" open hidden>
+    <summary>แอดมินนัดนี้</summary>
+    <p class="status" id="adminstatus">ใส่รหัสแอดมินเพื่อยืนยันวันและลบชื่อคนที่ลง</p>
+    <form class="me" id="codeform">
+      <label for="admincode" id="codelabel">รหัสแอดมิน</label>
+      <input id="admincode" type="password" minlength="4" maxlength="64" autocomplete="current-password">
+      <button class="copy" type="submit" id="codebtn">เข้าโหมดแอดมิน</button>
+    </form>
+    <details class="small" id="infobox" hidden>
+    <summary>แก้รายละเอียดนัด (ชื่อ สถานที่ ช่วงวัน ปิดรับ รายชื่อ)</summary>
+    <form class="sub2" id="infoform">
+      <div class="field"><label for="f-title">ชื่อนัด</label><input id="f-title" maxlength="60"></div>
+      <div class="grid2">
+        <div><label for="f-place">สถานที่</label><input id="f-place" maxlength="80" placeholder="เช่น เชียงใหม่"></div>
+        <div><label for="f-time">เวลา</label><input id="f-time" maxlength="40" placeholder="เช่น 18:00"></div>
+      </div>
+      <div class="field"><label for="f-desc">คำอธิบาย</label><textarea id="f-desc" maxlength="300" placeholder="เช่น งบประมาณ สิ่งที่ต้องเตรียม"></textarea></div>
+      <div class="grid2">
+        <div><label for="f-start">ให้เลือกได้ตั้งแต่</label><input id="f-start" type="date"></div>
+        <div><label for="f-end">ถึง</label><input id="f-end" type="date"></div>
+      </div>
+      <div class="field"><label for="f-deadline">ปิดรับวันที่ (เว้นว่าง = ไม่ปิด)</label><input id="f-deadline" type="date"></div>
+      <div class="field"><label for="f-expected">รายชื่อคนที่ควรมา (คั่นด้วย , หรือขึ้นบรรทัดใหม่)</label><textarea id="f-expected" maxlength="2000" placeholder="ต้น, มิ้นท์, บอส"></textarea></div>
+      <div class="row">
+        <button class="copy" type="submit" id="infosave">บันทึกรายละเอียด</button>
+        <span class="status" id="infomsg"></span>
+      </div>
+      <div class="row">
+        <button class="btn2 danger" type="button" id="delevent">ลบนัดนี้ทั้งนัด</button>
+      </div>
+    </form>
+    </details>
+  </details>
+
+  <section class="panel">
+    <div class="me">
+      <label for="myname">ชื่อเรา</label>
+      <input id="myname" maxlength="40" placeholder="เช่น ต้น, มิ้นท์" autocomplete="nickname">
+    </div>
+    <div class="me">
+      <label for="mynote">หมายเหตุ</label>
+      <input id="mynote" maxlength="80" placeholder="เช่น ว่างหลัง 6 โมงเย็น (ไม่ใส่ก็ได้)">
+    </div>
+    <div class="row">
+      <div class="status" id="status">กำลังโหลด…</div>
+      <div class="share">
+        <button class="copy" id="copy" type="button">คัดลอกลิงก์</button>
+        <a class="btn-line" id="lineshare" href="#" target="_blank" rel="noopener">ส่งใน LINE</a>
+        <button class="btn2" id="qrbtn" type="button">QR</button>
+      </div>
+    </div>
+    <div class="qrbox" id="qrbox" hidden><div id="qr"></div><span class="hint">ให้เพื่อนสแกนเพื่อเปิดนัดนี้</span></div>
+    <details class="small" id="mymore">
+      <summary>ใช้หลายเครื่อง / ลบชื่อฉัน</summary>
+      <div class="sub2">
+        <p class="hint">ตั้ง PIN ไว้ เปลี่ยนเครื่องแล้วจะกลับมาแก้วันเดิมได้</p>
+        <form class="me" id="pinform">
+          <label for="mypin">PIN ของฉัน</label>
+          <input id="mypin" type="password" inputmode="numeric" minlength="4" maxlength="12" placeholder="4–12 ตัว" autocomplete="new-password">
+          <button class="btn2 btn-plan" type="submit">ตั้ง PIN</button>
+        </form>
+        <form class="me" id="recoverform">
+          <label for="recname">เคยลงไว้</label>
+          <select id="recname" aria-label="เลือกชื่อที่เคยลง"></select>
+          <input id="recpin" type="password" inputmode="numeric" maxlength="12" placeholder="PIN" aria-label="PIN" autocomplete="current-password">
+          <button class="btn2 btn-plan" type="submit">ใช้ชื่อนี้</button>
+        </form>
+        <p class="status" id="pinmsg"></p>
+        <div><button class="btn2 danger" type="button" id="removeme">ลบชื่อฉันออกจากนัดนี้</button></div>
+      </div>
+    </details>
+  </section>
+
+  <section class="panel" aria-label="ปฏิทิน">
+    <div class="calhead">
+      <button class="nav" id="prev" aria-label="เดือนก่อน">‹</button>
+      <div class="month" id="month"></div>
+      <button class="nav" id="next" aria-label="เดือนถัดไป">›</button>
+    </div>
+    <div class="tools" id="tools">
+      <button class="btn2" type="button" id="qweekend">เสาร์–อาทิตย์เดือนนี้</button>
+      <button class="btn2" type="button" id="qrange">เลือกเป็นช่วง</button>
+      <button class="btn2" type="button" id="qclear">ล้างเดือนนี้</button>
+    </div>
+    <p class="hint" id="toolhint">กดชื่อวัน (อา–ส) เพื่อเลือกทั้งคอลัมน์ · คอมพิวเตอร์ลากเมาส์เลือกหลายวันได้</p>
+    <div class="grid" id="dows"></div>
+    <div class="grid" id="grid"></div>
+    <div class="slotbar" id="slotbar" hidden></div>
+    <p class="hols" id="hols" hidden></p>
+    <div class="legend">
+      <span><span class="ramp"><i style="background:var(--h1)"></i><i style="background:var(--h2)"></i><i style="background:var(--h3)"></i><i style="background:var(--h4)"></i></span>ยิ่งเข้ม ยิ่งว่างหลายคน</span>
+      <span><span class="sw sw-mine"></span>เราว่าง</span>
+      <span><span class="sw sw-maybe"></span>เราอาจจะว่าง</span>
+      <span><span class="sw sw-ok"></span>ยืนยันแล้ว</span>
+      <span><span class="sw sw-hol"></span>วันหยุด</span>
+    </div>
+  </section>
+
+  <section class="panel" id="planpanel" hidden>
+    <div class="row">
+      <h2>ยืนยันวัน</h2>
+      <button class="btn2 btn-plan" type="button" id="plantoggle">เลือกวันที่จะนัด</button>
+    </div>
+    <p class="status" id="planhint"></p>
+    <div id="plantools" hidden class="plan-tools">
+      <input id="planinput" placeholder="พิมพ์ เช่น 10-13 หรือ 10,12,15" aria-label="พิมพ์วันที่">
+      <button class="btn2" type="button" id="planapply">ใส่</button>
+      <button class="btn2" type="button" id="planclear">ล้าง</button>
+    </div>
+    <div id="sumwrap" hidden>
+      <p>วันที่เลือก: <span class="plandates" id="plandates"></span></p>
+      <div class="sum" id="summary"></div>
+    </div>
+    <div class="row" id="confactions" hidden>
+      <button class="btn2 btn-ok" type="button" id="confirmbtn">ยืนยันวันนี้</button>
+      <button class="btn2" type="button" id="unconfirmbtn" hidden>ยกเลิกการยืนยัน</button>
+      <span class="status" id="confmsg"></span>
+    </div>
+  </section>
+
+  <div class="cols">
+    <section class="panel">
+      <h2>วันที่ว่างตรงกันมากสุด</h2>
+      <ol class="best" id="best"></ol>
+    </section>
+    <section class="panel">
+      <h2>ใครลงแล้วบ้าง <span id="pc" class="status"></span></h2>
+      <ul class="people" id="people"></ul>
+      <p class="missing" id="missing" hidden></p>
+    </section>
+  </div>
+  </div>
+</div>
