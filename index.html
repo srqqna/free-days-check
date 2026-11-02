@@ -170,7 +170,7 @@ const firebaseConfig = {
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, collection, doc, onSnapshot, setDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, onSnapshot, setDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const TH_MONTH=["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
 const TH_MON_S=["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
@@ -274,9 +274,9 @@ $("grid").addEventListener("click",e=>{
   if(!ready&&!demo){setStatus("ยังเชื่อมต่อไม่เสร็จ รอสักครู่",true);return}
   const k=b.dataset.k;myDates.has(k)?myDates.delete(k):myDates.add(k);
   if(demo)myId="local";
-  render();queueSave();
+  render();queueSave(0);
 });
-$("myname").addEventListener("input",e=>{myName=e.target.value.trim();try{localStorage.setItem("ffd-name",myName)}catch(_){}render();queueSave()});
+$("myname").addEventListener("input",e=>{myName=e.target.value.trim();try{localStorage.setItem("ffd-name",myName)}catch(_){}render();queueSave(600)});
 $("prev").onclick=()=>{view=new Date(view.getFullYear(),view.getMonth()-1,1);render()};
 $("next").onclick=()=>{view=new Date(view.getFullYear(),view.getMonth()+1,1);render()};
 $("copy").onclick=async()=>{
@@ -286,11 +286,11 @@ $("copy").onclick=async()=>{
   setTimeout(()=>$("copy").textContent="คัดลอกลิงก์ส่งเพื่อน",2000);
 };
 
-function queueSave(){
+function queueSave(delay){
   if(!ready)return;
   if(!myName){setStatus("ใส่ชื่อก่อน แล้วระบบจะบันทึกให้อัตโนมัติ",true);return}
   setStatus("กำลังบันทึก…");
-  clearTimeout(saveTimer);saveTimer=setTimeout(save,700);
+  clearTimeout(saveTimer);saveTimer=setTimeout(save,delay);
 }
 async function save(){
   if(saving){pending=true;return}
@@ -313,7 +313,11 @@ if(demo){
   render();
 }else{
   const app=initializeApp(firebaseConfig);
-  const auth=getAuth(app), fs=getFirestore(app);
+  const auth=getAuth(app), fs=(()=>{
+    // เก็บข้อมูลไว้ในเครื่องด้วย: เปิดครั้งต่อไปขึ้นทันที และบันทึกต่อได้แม้เน็ตหลุดชั่วคราว
+    try{return initializeFirestore(app,{localCache:persistentLocalCache({tabManager:persistentMultipleTabManager()})})}
+    catch(e){return initializeFirestore(app,{})}
+  })();
   const timer=setTimeout(()=>{if(!loaded){const n=$("notice");n.hidden=false;n.textContent="ยังเชื่อมต่อฐานข้อมูลไม่ได้ เช็กอินเทอร์เน็ต หรือเช็กการตั้งค่า Firebase"}},10000);
   onAuthStateChanged(auth,user=>{
     if(!user||myId)return;
