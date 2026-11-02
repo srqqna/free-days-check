@@ -77,6 +77,7 @@ ul.people li{display:flex;justify-content:space-between;gap:8px;align-items:cent
 @media (prefers-reduced-motion:no-preference){.day{transition:background .15s,border-color .15s}}
 .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
 .copy{font:inherit;font-weight:600;background:var(--accent);color:var(--accent-ink);border:0;border-radius:10px;padding:8px 14px;cursor:pointer}
+.owner{color:var(--accent);font-weight:600}
 .eyebrow{margin:0 0 2px;font-size:.8rem;font-weight:600;letter-spacing:.06em;color:var(--accent)}
 .newev summary{cursor:pointer;font-family:var(--font-display);font-weight:600;font-size:1.05rem}
 .newev[open] summary{margin-bottom:4px}
@@ -95,6 +96,7 @@ button.ghost{font:inherit;font-weight:600;background:none;border:0;cursor:pointe
   <header>
     <p class="eyebrow" id="eyebrow" hidden>เพื่อนว่างวันไหน</p>
     <h1 id="title">เพื่อนว่างวันไหน</h1>
+    <p class="sub owner" id="ownernote" hidden>คุณเป็นคนสร้างนัดนี้ ลบชื่อคนที่ลงได้ในรายการด้านล่าง</p>
     <p class="sub">ใส่ชื่อ แล้วแตะวันที่ตัวเองว่าง สีเข้ม = ว่างกันหลายคน</p>
   </header>
 
@@ -105,8 +107,9 @@ button.ghost{font:inherit;font-weight:600;background:none;border:0;cursor:pointe
     <form class="me" id="evform">
       <label for="evname">ชื่อนัด</label>
       <input id="evname" maxlength="60" placeholder="เช่น ทริปเชียงใหม่, วันเกิดมิ้นท์" autocomplete="off">
-      <button class="copy" type="submit">สร้างลิงก์</button>
+      <button class="copy" type="submit" id="evsubmit">สร้างลิงก์</button>
     </form>
+    <p class="status" id="evmsg">คนที่สร้างนัดจะเป็นแอดมินของนัดนั้น ลบชื่อคนที่ลงได้</p>
     <div class="linkout" id="linkout" hidden>
       <input id="evlink" readonly aria-label="ลิงก์ชวนเพื่อน">
       <div class="row">
@@ -186,7 +189,7 @@ const firebaseConfig = {
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, linkWithPopup, signInWithCredential } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, onSnapshot, setDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, onSnapshot, setDoc, getDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const TH_MONTH=["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
 const TH_MON_S=["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
@@ -213,11 +216,25 @@ function showLink(ev){
   const url=linkFor(ev);
   $("evlink").value=url;$("evopen").href=url;$("linkout").hidden=false;
 }
-$("evform").addEventListener("submit",e=>{
+$("evform").addEventListener("submit",async e=>{
   e.preventDefault();
-  const ev=cleanEvent($("evname").value);
+  const ev=cleanEvent($("evname").value), msg=$("evmsg");
+  msg.classList.remove("err");
   if(!ev||ev==="main"){$("evname").focus();$("evname").placeholder="พิมพ์ชื่อนัดก่อน";return}
-  showLink(ev);
+  if(demo){showLink(ev);return}
+  if(!ready){msg.textContent="ยังเชื่อมต่อไม่เสร็จ รอสักครู่แล้วกดอีกครั้ง";msg.classList.add("err");return}
+  $("evsubmit").disabled=true;
+  try{
+    const evRef=doc(fsRef,"events",ev), snap=await getDoc(evRef);
+    if(snap.exists()&&snap.data().owner!==myId){
+      msg.textContent="ชื่อนัดนี้มีคนสร้างไว้แล้ว ถ้าจะสร้างนัดใหม่ให้ใช้ชื่ออื่น (ลิงก์ด้านล่างคือนัดเดิม)";msg.classList.add("err");
+    }else{
+      if(!snap.exists())await setDoc(evRef,{owner:myId,name:ev,createdAt:serverTimestamp()});
+      msg.textContent="สร้างนัดแล้ว คุณเป็นแอดมินของนัดนี้ ส่งลิงก์ให้เพื่อนได้เลย";
+    }
+    showLink(ev);
+  }catch(err){console.error(err);msg.textContent="สร้างนัดไม่สำเร็จ ("+(err.code||"error")+") ลองใหม่อีกครั้ง";msg.classList.add("err")}
+  $("evsubmit").disabled=false;
 });
 $("evcopy").onclick=async()=>{
   try{await navigator.clipboard.writeText($("evlink").value);$("evcopy").textContent="คัดลอกแล้ว"}
@@ -229,7 +246,7 @@ let view=new Date(today.getFullYear(),today.getMonth(),1);
 let people={};            // uid -> {name,dates}
 let myId=null, myDates=new Set(), myName="", ready=false, loaded=false;
 const demo=firebaseConfig.apiKey.startsWith("PASTE");
-let isAdmin=false, fsRef=null;
+let isAdmin=false, isEventOwner=false, fsRef=null;
 let saveTimer=null, saving=false, pending=false, ref=null;
 
 try{myName=localStorage.getItem("ffd-name")||""}catch(e){}
@@ -283,7 +300,7 @@ function render(){
     const nm=document.createElement("span");nm.className="nm";nm.textContent=(p.name||"ไม่ระบุชื่อ")+(id===myId?" (เรา)":"");
     const ct=document.createElement("span");ct.className="ct";ct.textContent=(p.dates||[]).filter(d=>d>=todayKey).length+" วัน";
     const right=document.createElement("span");right.className="right";right.appendChild(ct);
-    if(isAdmin&&id!==myId&&people[id]){
+    if((isAdmin||isEventOwner)&&id!==myId&&people[id]){
       const b=document.createElement("button");b.className="rm";b.type="button";b.textContent="ลบ";
       b.onclick=async()=>{
         if(!b.classList.contains("confirm")){b.classList.add("confirm");b.textContent="ยืนยันลบ";setTimeout(()=>{b.classList.remove("confirm");b.textContent="ลบ"},3000);return}
@@ -370,6 +387,10 @@ if(demo){
   $("uidcopy").onclick=async()=>{try{await navigator.clipboard.writeText($("myuid").value);$("uidcopy").textContent="คัดลอกแล้ว"}catch(e){$("myuid").select()}setTimeout(()=>$("uidcopy").textContent="คัดลอกรหัส",2000)};
   onAuthStateChanged(auth,user=>{
     if(!user||myId)return;
+    if(eventId!=="main")onSnapshot(doc(fs,"events",eventId),ev=>{
+      isEventOwner=ev.exists()&&ev.data().owner===user.uid;
+      $("ownernote").hidden=!isEventOwner;render();
+    },()=>{});
     onSnapshot(doc(fs,"admins",user.uid),a=>{isAdmin=a.exists();if(isAdmin)$("adminbox").open=true;showAdmin(user);render()},()=>{});
     showAdmin(user);
     myId=user.uid;ready=true;
