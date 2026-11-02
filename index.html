@@ -657,7 +657,7 @@ $("myname").value=myName;
 function setStatus(t,err){const s=$("status");s.textContent=t;s.classList.toggle("err",!!err)}
 const isEvAdmin=()=>eventExists&&(isEventOwner||isCodeAdmin||isAdmin);
 const closed=()=>!!ev.deadline&&todayKey>ev.deadline;
-const canEdit=()=>ready&&(!closed()||isEvAdmin());
+const canEdit=()=>ready&&eventExists&&(!closed()||isEvAdmin());
 const inRange=k=>k>=todayKey&&(!ev.rangeStart||k>=ev.rangeStart)&&(!ev.rangeEnd||k<=ev.rangeEnd);
 
 // ===== แปลงข้อมูลคน =====
@@ -1129,7 +1129,7 @@ function renderLive(){
 }
 let hbTimer=null;
 async function heartbeat(){
-  if(home||!ready||!myId||document.hidden)return;
+  if(home||!ready||!myId||document.hidden||!eventExists)return;
   try{await setDoc(doc(fs,"events",eventId,"presence",myId),{name:(myName||"").slice(0,40),at:serverTimestamp()})}catch(e){}
 }
 setInterval(()=>{if(!home&&ready)renderLive()},15000);
@@ -1289,7 +1289,11 @@ onAuthStateChanged(auth,async user=>{
     eventExists=s.exists();ev=eventExists?s.data():{};
     isEventOwner=eventExists&&ev.owner===user.uid;hasCode=ev.hasCode===true;
     confirmed=Array.isArray(ev.confirmed)?ev.confirmed.filter(x=>typeof x==="string").sort():[];
-    if(eventExists)remember(eventId,ev.title||niceName(eventId),isEventOwner);
+    if(eventExists){remember(eventId,ev.title||niceName(eventId),isEventOwner);if(!s.metadata?.fromCache)heartbeat()}
+    else if(!s.metadata?.fromCache){
+      forget(eventId);const n=$("notice");n.hidden=false;n.textContent="ไม่เจอนัดนี้ ลิงก์อาจพิมพ์ผิด หรือนัดถูกลบไปแล้ว";
+      $("tools").hidden=true;deleteDoc(doc(fs,"events",eventId,"presence",user.uid)).catch(()=>{});
+    }
     if(ev.rangeStart&&!render.jumped){render.jumped=true;const d=fromKey(ev.rangeStart);if(d>today)view=new Date(d.getFullYear(),d.getMonth(),1)}
     render();
   },()=>{});

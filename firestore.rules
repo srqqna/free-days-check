@@ -73,6 +73,7 @@ service cloud.firestore {
         allow read: if true;
         allow create, update: if signedIn()
           && me() == uid
+          && exists(evPath(eventId))
           && openForEdits(eventId)
           && request.resource.data.keys().hasOnly(['name', 'note', 'days', 'maybe', 'hasPin', 'updatedAt'])
           && request.resource.data.name is string
@@ -126,6 +127,7 @@ service cloud.firestore {
       match /presence/{uid} {
         allow read: if true;
         allow create, update: if signedIn() && me() == uid
+          && exists(evPath(eventId))
           && request.resource.data.keys().hasOnly(['name', 'at'])
           && str(request.resource.data, 'name', 40)
           && request.resource.data.at == request.time;
