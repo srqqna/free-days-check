@@ -44,7 +44,13 @@ p{margin:0}
 /* sections: no cards, just space; hairline above secondary sections */
 .panel{display:grid;gap:14px;min-width:0}
 .cols{display:grid;gap:44px}
-.cols .panel,#planpanel,.admin,.newev{border-top:1px solid var(--line);padding-top:24px}
+.stack{display:grid;gap:44px;min-width:0}
+.evlist .nm a{color:var(--ink);font-weight:600;text-decoration:none}
+.evlist .nm a:hover{text-decoration:underline;text-underline-offset:3px}
+.evlist .meta{display:block;font-size:.82rem;color:var(--muted)}
+.evlist .meta.ok{color:var(--ok)}
+.ownerview #ownerlogin{font-weight:500;color:var(--muted)}
+.cols .panel,#planpanel,.admin,.ownerview{border-top:1px solid var(--line);padding-top:24px}
 
 /* fields: quiet, filled, no borders */
 .me{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
@@ -150,14 +156,14 @@ ul.people li{display:flex;justify-content:space-between;gap:8px;align-items:cent
     <p class="eyebrow" id="eyebrow" hidden>เพื่อนว่างวันไหน</p>
     <h1 id="title">เพื่อนว่างวันไหน</h1>
     <p class="sub owner" id="ownernote" hidden>คุณเป็นแอดมินของนัดนี้ ยืนยันวันและลบชื่อคนที่ลงได้</p>
-    <p class="sub">ใส่ชื่อ แล้วแตะวันที่คุณว่าง</p>
+    <p class="sub" id="lead">ใส่ชื่อ แล้วแตะวันที่คุณว่าง</p>
   </header>
 
   <div class="notice" id="notice" hidden></div>
   <div class="confirm-banner" id="confbanner" hidden><b>ยืนยันวันแล้ว</b><span class="when" id="confwhen"></span><span class="status" id="confcount"></span></div>
 
-  <details class="panel newev" id="newev">
-    <summary>สร้างนัดใหม่ + ลิงก์ชวนเพื่อน</summary>
+  <section class="panel newev" id="newev" hidden>
+    <h2>สร้างนัดใหม่</h2>
     <form class="me" id="evform">
       <label for="evname">ชื่อนัด</label>
       <input id="evname" maxlength="60" placeholder="เช่น ทริปเชียงใหม่, วันเกิดมิ้นท์" autocomplete="off">
@@ -175,7 +181,21 @@ ul.people li{display:flex;justify-content:space-between;gap:8px;align-items:cent
         <a class="ghost" id="evopen" href="#">เปิดหน้านัดนี้</a>
       </div>
     </div>
-  </details>
+  </section>
+
+  <section class="panel ownerview" id="ownerview" hidden>
+    <div class="row" id="ownerhead" hidden>
+      <h2>นัดทั้งหมด <span id="evcount" class="status"></span></h2>
+      <button class="btn2" type="button" id="signout">ออกจากระบบ</button>
+    </div>
+    <ul class="people evlist" id="evlist" hidden></ul>
+    <div class="row">
+      <button class="ghost" type="button" id="ownerlogin">เจ้าของเว็บ: เข้าสู่ระบบด้วย Google</button>
+      <span class="status" id="ownerstatus"></span>
+    </div>
+  </section>
+
+  <div class="stack" id="eventview" hidden>
 
   <section class="panel">
     <div class="me">
@@ -243,6 +263,7 @@ ul.people li{display:flex;justify-content:space-between;gap:8px;align-items:cent
       <button class="copy" type="submit" id="codebtn">เข้าโหมดแอดมิน</button>
     </form>
   </details>
+  </div>
 </div>
 
 <script type="module">
@@ -268,8 +289,8 @@ const firebaseConfig = {
 // =====================================================================================================
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, onSnapshot, setDoc, getDoc, updateDoc, deleteDoc, writeBatch, Bytes, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, onSnapshot, setDoc, getDoc, updateDoc, deleteDoc, writeBatch, Bytes, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const TH_MONTH=["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
 const TH_MON_S=["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
@@ -288,10 +309,16 @@ const cleanEvent=v=>(v||"").normalize("NFC").trim().replace(/[\/?#&%\u0000-\u001
 const eventId=cleanEvent(params.get("event"))||"main";
 const baseUrl=location.origin+location.pathname;
 const linkFor=ev=>baseUrl+"?event="+encodeURIComponent(ev);
-if(eventId!=="main"){
+const OWNER_EMAIL="mstandad@gmail.com"; // เจ้าของเว็บ: เห็นและจัดการทุกนัด
+const home=eventId==="main";
+if(!home){
   const nice=eventId.replace(/-/g," ");
-  $("title").textContent=nice;$("eyebrow").hidden=false;$("newev").hidden=true;document.title=nice+" · เพื่อนว่างวันไหน";
-}else{$("newev").open=true}
+  $("title").textContent=nice;$("eyebrow").hidden=false;document.title=nice+" · เพื่อนว่างวันไหน";
+  $("eventview").hidden=false;
+}else{
+  $("newev").hidden=false;$("ownerview").hidden=false;
+  $("lead").textContent="สร้างนัด แล้วส่งลิงก์ให้เพื่อนแตะวันที่ว่าง";
+}
 function showLink(ev){
   const url=linkFor(ev);
   $("evlink").value=url;$("evopen").href=url;$("linkout").hidden=false;
@@ -609,8 +636,67 @@ if(demo){
   })();
   const timer=setTimeout(()=>{if(!loaded){const n=$("notice");n.hidden=false;n.textContent="ยังเชื่อมต่อฐานข้อมูลไม่ได้ เช็กอินเทอร์เน็ต หรือเช็กการตั้งค่า Firebase"}},10000);
   fsRef=fs;
+  const isOwnerUser=u=>!!u&&!u.isAnonymous&&u.emailVerified&&(u.email||"").toLowerCase()===OWNER_EMAIL;
+  $("ownerlogin").onclick=async()=>{
+    const st=$("ownerstatus");st.textContent="";
+    const provider=new GoogleAuthProvider();provider.setCustomParameters({login_hint:OWNER_EMAIL,prompt:"select_account"});
+    try{
+      const r=await signInWithPopup(auth,provider);
+      if(!isOwnerUser(r.user)){await signOut(auth);st.textContent="บัญชีนี้ไม่ใช่เจ้าของเว็บ";st.classList.add("err");setTimeout(()=>location.reload(),1500);return}
+      location.reload();
+    }catch(e){
+      if(e.code==="auth/operation-not-allowed")st.textContent="ยังไม่ได้เปิด Google sign-in ใน Firebase Authentication";
+      else if(e.code!=="auth/popup-closed-by-user"&&e.code!=="auth/cancelled-popup-request")st.textContent="เข้าสู่ระบบไม่ได้ ("+e.code+")";
+      st.classList.add("err");
+    }
+  };
+  $("signout").onclick=async()=>{await signOut(auth);location.reload()};
+  async function loadEvents(){
+    const ul=$("evlist");ul.hidden=false;$("ownerhead").hidden=false;$("ownerlogin").hidden=true;
+    onSnapshot(collection(fs,"events"),async snap=>{
+      const evs=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+      $("evcount").textContent="("+evs.length+")";
+      ul.innerHTML=evs.length?"":`<li class="empty">ยังไม่มีนัด</li>`;
+      for(const ev of evs){
+        const li=document.createElement("li");
+        const left=document.createElement("span");left.className="nm";
+        const a=document.createElement("a");a.href=linkFor(ev.id);a.textContent=(ev.name||ev.id).replace(/-/g," ");
+        const meta=document.createElement("span");meta.className="meta";
+        const created=ev.createdAt?.toDate?ev.createdAt.toDate():null;
+        meta.textContent=(created?"สร้าง "+created.getDate()+" "+TH_MON_S[created.getMonth()]+" "+(created.getFullYear()+543):"")+(ev.hasCode?"":" (ไม่มีรหัสแอดมิน)");
+        left.append(a,meta);
+        if(Array.isArray(ev.confirmed)&&ev.confirmed.length){const c=document.createElement("span");c.className="meta ok";c.textContent="ยืนยันแล้ว "+fmtDates(ev.confirmed);left.appendChild(c)}
+        const right=document.createElement("span");right.className="right";
+        const ct=document.createElement("span");ct.className="ct";ct.textContent="… คน";right.appendChild(ct);
+        getDocs(collection(fs,"events",ev.id,"people")).then(ps=>{ct.textContent=ps.size+" คน"}).catch(()=>{ct.textContent=""});
+        const del=document.createElement("button");del.className="rm";del.type="button";del.textContent="ลบนัด";
+        del.onclick=async()=>{
+          if(!del.classList.contains("confirm")){del.classList.add("confirm");del.textContent="ยืนยันลบทั้งนัด";setTimeout(()=>{del.classList.remove("confirm");del.textContent="ลบนัด"},3000);return}
+          del.disabled=true;del.textContent="กำลังลบ…";
+          try{await deleteEvent(ev.id)}catch(e){console.error(e);del.disabled=false;del.textContent="ลบไม่สำเร็จ ("+(e.code||"error")+")"}
+        };
+        right.appendChild(del);
+        li.append(left,right);ul.appendChild(li);
+      }
+    },e=>{console.error(e);ul.innerHTML=`<li class="empty">โหลดรายการนัดไม่ได้ (${e.code}) เช็ก Firestore rules</li>`});
+  }
+  // ลบนัดทั้งนัด: รายชื่อคนลง, แอดมินที่ใส่รหัส, รหัส, แล้วตัวนัด
+  async function deleteEvent(id){
+    const refs=[];
+    for(const sub of ["people","admins"]){(await getDocs(collection(fs,"events",id,sub))).forEach(d=>refs.push(d.ref))}
+    refs.push(doc(fs,"events",id,"secret","admin"),doc(fs,"events",id));
+    for(let i=0;i<refs.length;i+=450){const b=writeBatch(fs);refs.slice(i,i+450).forEach(r=>b.delete(r));await b.commit()}
+  }
   onAuthStateChanged(auth,user=>{
-    if(!user||myId)return;
+    if(!user){signInAnonymously(auth).catch(e=>{console.error(e);setStatus("เข้าระบบไม่ได้ ("+e.code+") เช็กว่าเปิด Anonymous sign-in แล้ว",true)});return}
+    if(myId)return;
+    if(isOwnerUser(user)){isAdmin=true}
+    if(home){
+      myId=user.uid;ready=true;loaded=true;clearTimeout(timer);
+      if(isOwnerUser(user))loadEvents();
+      else if(!user.isAnonymous){$("ownerhead").hidden=false;$("ownerlogin").hidden=true}
+      return;
+    }
     if(eventId!=="main")onSnapshot(doc(fs,"events",eventId),ev=>{
       eventExists=ev.exists();
       isEventOwner=eventExists&&ev.data().owner===user.uid;
@@ -619,7 +705,7 @@ if(demo){
       render();
     },()=>{});
     if(eventId!=="main")onSnapshot(doc(fs,"events",eventId,"admins",user.uid),a=>{isCodeAdmin=a.exists();render()},()=>{});
-    onSnapshot(doc(fs,"admins",user.uid),a=>{isAdmin=a.exists();render()},()=>{});
+    onSnapshot(doc(fs,"admins",user.uid),a=>{isAdmin=a.exists()||isOwnerUser(user);render()},()=>{});
     myId=user.uid;ready=true;
     ref=doc(fs,"events",eventId,"people",myId);
     setStatus(myName?"พร้อมแล้ว แตะวันที่ว่างได้เลย":"ใส่ชื่อ แล้วแตะวันที่ว่าง");
@@ -634,7 +720,6 @@ if(demo){
       first=false;loaded=true;clearTimeout(timer);$("notice").hidden=true;render();
     },err=>{console.error(err);loaded=true;clearTimeout(timer);const n=$("notice");n.hidden=false;n.textContent="โหลดข้อมูลไม่ได้ ("+err.code+") เช็ก Firestore rules";render()});
   });
-  signInAnonymously(auth).catch(e=>{console.error(e);setStatus("เข้าระบบไม่ได้ ("+e.code+") เช็กว่าเปิด Anonymous sign-in แล้ว",true)});
 }
 </script>
 </body>

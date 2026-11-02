@@ -4,8 +4,12 @@ service cloud.firestore {
 
     function signedIn() { return request.auth != null; }
     function eventPath(eventId) { return /databases/$(database)/documents/events/$(eventId); }
+    // เจ้าของเว็บ (ล็อกอิน Google ด้วยอีเมลนี้เท่านั้น) หรือคนที่อยู่ใน admins/{uid}
     function isGlobalAdmin() {
-      return signedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+      return signedIn() && (
+        (request.auth.token.email == 'mstandad@gmail.com' && request.auth.token.email_verified == true)
+        || exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
     }
     // แอดมินของนัด: คนสร้างนัด, คนที่ใส่รหัสแอดมินถูก, หรือแอดมินรวม
     function isEventAdmin(eventId) {
@@ -57,12 +61,13 @@ service cloud.firestore {
           && request.resource.data.keys().hasOnly(['hash'])
           && request.resource.data.hash is bytes
           && request.resource.data.hash.size() == 32;
-        allow update, delete: if false;
+        allow update: if false;
+        allow delete: if isGlobalAdmin();
       }
 
       // คนที่ใส่รหัสแอดมินถูก: สร้างได้เมื่อรหัสตรงกับแฮช
       match /admins/{uid} {
-        allow read: if signedIn() && request.auth.uid == uid;
+        allow read: if signedIn() && (request.auth.uid == uid || isGlobalAdmin());
         allow create: if signedIn()
           && request.auth.uid == uid
           && request.resource.data.keys().hasOnly(['code', 'at'])
@@ -73,7 +78,7 @@ service cloud.firestore {
           && hashing.sha256((eventId + ':' + request.resource.data.code).toUtf8())
              == get(/databases/$(database)/documents/events/$(eventId)/secret/admin).data.hash;
         allow update: if false;
-        allow delete: if signedIn() && request.auth.uid == uid;
+        allow delete: if signedIn() && (request.auth.uid == uid || isGlobalAdmin());
       }
     }
 
