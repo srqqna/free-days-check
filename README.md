@@ -136,4 +136,4 @@
 
 ---
 
-<sub>เจ้าของเว็บ: ดูวิธีตั้งค่าใน [SETUP.md](SETUP.md)</sub>
+<sub>เจ้าของเว็บ: ดูวิธีตั้งค่าใน [SETUP.md](docs/SETUP.md)</sub>
