@@ -3,12 +3,14 @@
 ใช้เวลาประมาณ 10 นาที ฟรีทั้งหมด
 
 ไฟล์ใน repo:
-- `index.html` — ตัวเว็บ
-- `firestore.rules` — กฎความปลอดภัยของฐานข้อมูล (วางใน Firestore > Rules)
-- `og.png` — รูปตอนแชร์ลิงก์
-- `README.md` — คู่มือสำหรับคนใช้
-- `docs/SETUP.md` — ไฟล์นี้
-- `src/` — ไฟล์ที่ใช้ประกอบเป็น `index.html`
+```
+index.html              ตัวเว็บ (GitHub Pages ใช้ไฟล์นี้)
+README.md               คู่มือสำหรับคนใช้
+assets/og.png           รูปตอนแชร์ลิงก์
+firebase/firestore.rules กฎความปลอดภัย (วางใน Firestore > Rules)
+docs/SETUP.md           ไฟล์นี้
+src/                    ไฟล์ที่ใช้ประกอบเป็น index.html
+```
 
 ---
 
@@ -23,7 +25,7 @@
    - เลือก **Start in production mode** แล้วกด Create
 4. ใส่กฎความปลอดภัย
    - ในหน้า Firestore ไปที่แท็บ **Rules**
-   - ลบของเดิมทั้งหมด แล้ววางเนื้อหาจากไฟล์ `firestore.rules`
+   - ลบของเดิมทั้งหมด แล้ววางเนื้อหาจากไฟล์ `firebase/firestore.rules`
    - กด **Publish**
 5. เปิดล็อกอินแบบไม่ระบุตัวตน (เพื่อนไม่ต้องสมัครอะไร)
    - เมนูซ้าย **Build > Authentication > Get started**
