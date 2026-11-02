@@ -16,7 +16,17 @@ service cloud.firestore {
         && request.resource.data.dates is list
         && request.resource.data.dates.size() <= 400;
 
-      allow delete: if request.auth != null && request.auth.uid == uid;
+      // ลบได้: เจ้าของชื่อเอง หรือแอดมิน (มีเอกสาร admins/{uid})
+      allow delete: if request.auth != null
+        && (request.auth.uid == uid
+            || exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+    }
+
+    // admins/{uid} — เพิ่มเองใน Firebase Console เท่านั้น
+    // แต่ละคนอ่านได้แค่ของตัวเอง (เพื่อให้เว็บรู้ว่าเราเป็นแอดมินไหม)
+    match /admins/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
     }
 
     // ปิดทุกอย่างที่เหลือ
