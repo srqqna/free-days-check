@@ -120,7 +120,7 @@ button.ghost{font:inherit;font-weight:600;background:none;border:0;cursor:pointe
   <header>
     <p class="eyebrow" id="eyebrow" hidden>เพื่อนว่างวันไหน</p>
     <h1 id="title">เพื่อนว่างวันไหน</h1>
-    <p class="sub owner" id="ownernote" hidden>คุณเป็นคนสร้างนัดนี้ ลบชื่อคนที่ลงได้ในรายการด้านล่าง</p>
+    <p class="sub owner" id="ownernote" hidden>คุณเป็นแอดมินของนัดนี้ ยืนยันวันและลบชื่อคนที่ลงได้</p>
     <p class="sub">ใส่ชื่อ แล้วแตะวันที่ตัวเองว่าง สีเข้ม = ว่างกันหลายคน</p>
   </header>
 
@@ -132,9 +132,13 @@ button.ghost{font:inherit;font-weight:600;background:none;border:0;cursor:pointe
     <form class="me" id="evform">
       <label for="evname">ชื่อนัด</label>
       <input id="evname" maxlength="60" placeholder="เช่น ทริปเชียงใหม่, วันเกิดมิ้นท์" autocomplete="off">
-      <button class="copy" type="submit" id="evsubmit">สร้างลิงก์</button>
     </form>
-    <p class="status" id="evmsg">คนที่สร้างนัดจะเป็นแอดมินของนัดนั้น ลบชื่อคนที่ลงได้</p>
+    <div class="me">
+      <label for="evcode">รหัสแอดมิน</label>
+      <input id="evcode" form="evform" type="password" minlength="4" maxlength="64" placeholder="อย่างน้อย 4 ตัว จำไว้ให้ดี" autocomplete="new-password">
+      <button class="copy" type="submit" form="evform" id="evsubmit">สร้างลิงก์</button>
+    </div>
+    <p class="status" id="evmsg">ใครมีรหัสแอดมิน ยืนยันวันและลบชื่อคนที่ลงได้ ใช้ได้ทุกเครื่อง</p>
     <div class="linkout" id="linkout" hidden>
       <input id="evlink" readonly aria-label="ลิงก์ชวนเพื่อน">
       <div class="row">
@@ -201,16 +205,14 @@ button.ghost{font:inherit;font-weight:600;background:none;border:0;cursor:pointe
     </section>
   </div>
 
-  <details class="panel admin" id="adminbox">
-    <summary>แอดมิน</summary>
-    <p class="status" id="adminstatus">แอดมินลบชื่อคนที่ลงได้ เข้าสู่ระบบด้วย Google ก่อน</p>
-    <div class="row">
-      <button class="copy" type="button" id="adminlogin">เข้าสู่ระบบด้วย Google</button>
-    </div>
-    <div class="linkout" id="adminid" hidden>
-      <input id="myuid" readonly aria-label="รหัสผู้ใช้ของเรา">
-      <div class="row"><button class="ghost" type="button" id="uidcopy">คัดลอกรหัส</button></div>
-    </div>
+  <details class="panel admin" id="adminbox" hidden>
+    <summary>แอดมินนัดนี้</summary>
+    <p class="status" id="adminstatus">ใส่รหัสแอดมินเพื่อยืนยันวันและลบชื่อคนที่ลง</p>
+    <form class="me" id="codeform">
+      <label for="admincode" id="codelabel">รหัสแอดมิน</label>
+      <input id="admincode" type="password" minlength="4" maxlength="64" autocomplete="current-password">
+      <button class="copy" type="submit" id="codebtn">เข้าโหมดแอดมิน</button>
+    </form>
   </details>
 </div>
 
@@ -237,8 +239,8 @@ const firebaseConfig = {
 // =====================================================================================================
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, linkWithPopup, signInWithCredential } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, onSnapshot, setDoc, getDoc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, onSnapshot, setDoc, getDoc, updateDoc, deleteDoc, writeBatch, Bytes, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const TH_MONTH=["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
 const TH_MON_S=["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
@@ -271,6 +273,7 @@ $("evform").addEventListener("submit",async e=>{
   msg.classList.remove("err");
   if(!ev||ev==="main"){$("evname").focus();$("evname").placeholder="พิมพ์ชื่อนัดก่อน";return}
   if(demo){showLink(ev);return}
+  const code=$("evcode").value;
   if(!ready){msg.textContent="ยังเชื่อมต่อไม่เสร็จ รอสักครู่แล้วกดอีกครั้ง";msg.classList.add("err");return}
   $("evsubmit").disabled=true;
   try{
@@ -278,8 +281,14 @@ $("evform").addEventListener("submit",async e=>{
     if(snap.exists()&&snap.data().owner!==myId){
       msg.textContent="ชื่อนัดนี้มีคนสร้างไว้แล้ว ถ้าจะสร้างนัดใหม่ให้ใช้ชื่ออื่น (ลิงก์ด้านล่างคือนัดเดิม)";msg.classList.add("err");
     }else{
-      if(!snap.exists())await setDoc(evRef,{owner:myId,name:ev,createdAt:serverTimestamp()});
-      msg.textContent="สร้างนัดแล้ว คุณเป็นแอดมินของนัดนี้ ส่งลิงก์ให้เพื่อนได้เลย";
+      if(!snap.exists()){
+        if(code.length<4){msg.textContent="ตั้งรหัสแอดมินอย่างน้อย 4 ตัว";msg.classList.add("err");$("evcode").focus();$("evsubmit").disabled=false;return}
+        const b=writeBatch(fsRef);
+        b.set(evRef,{owner:myId,name:ev,hasCode:true,createdAt:serverTimestamp()});
+        b.set(doc(fsRef,"events",ev,"secret","admin"),{hash:await codeHash(ev,code)});
+        await b.commit();$("evcode").value="";
+      }
+      msg.textContent="สร้างนัดแล้ว ส่งลิงก์ให้เพื่อนได้เลย จำรหัสแอดมินไว้ใช้ยืนยันวัน";
     }
     showLink(ev);
   }catch(err){console.error(err);msg.textContent="สร้างนัดไม่สำเร็จ ("+(err.code||"error")+") ลองใหม่อีกครั้ง";msg.classList.add("err")}
@@ -296,6 +305,7 @@ let people={};            // uid -> {name,dates}
 let myId=null, myDates=new Set(), myName="", ready=false, loaded=false;
 const demo=firebaseConfig.apiKey.startsWith("PASTE");
 let isAdmin=false, isEventOwner=false, fsRef=null;
+let isCodeAdmin=false, hasCode=false;
 let eventExists=false, confirmed=[], planMode=false, plan=new Set();
 let saveTimer=null, saving=false, pending=false, ref=null;
 
@@ -346,7 +356,46 @@ function parseDays(txt){
   }
   return out;
 }
-function canConfirm(){return eventExists&&(isEventOwner||isAdmin)}
+function isEvAdmin(){return eventExists&&(isEventOwner||isCodeAdmin||isAdmin)}
+function canConfirm(){return isEvAdmin()}
+// แฮชรหัสแอดมิน (ผูกกับชื่อนัด) — Firestore rules คำนวณแบบเดียวกันเพื่อตรวจ
+async function codeHash(ev,code){
+  const buf=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(ev+":"+code));
+  return Bytes.fromUint8Array(new Uint8Array(buf));
+}
+function renderAdmin(){
+  if(eventId==="main"||!eventExists){$("adminbox").hidden=true;return}
+  $("adminbox").hidden=false;
+  const admin=isEvAdmin(), ownerNoCode=isEventOwner&&!hasCode;
+  $("codeform").hidden=admin&&!ownerNoCode;
+  if(ownerNoCode){$("codelabel").textContent="ตั้งรหัสแอดมิน";$("codebtn").textContent="ตั้งรหัส";$("admincode").autocomplete="new-password";
+    $("adminstatus").textContent="นัดนี้ยังไม่มีรหัสแอดมิน ตั้งไว้เผื่อเปลี่ยนเครื่องหรือข้อมูลเบราว์เซอร์หาย"}
+  else if(admin){$("adminstatus").textContent="คุณเป็นแอดมินของนัดนี้ ยืนยันวันและลบชื่อคนที่ลงได้"}
+  else{$("codelabel").textContent="รหัสแอดมิน";$("codebtn").textContent="เข้าโหมดแอดมิน";
+    if(!$("adminstatus").classList.contains("err"))$("adminstatus").textContent="ใส่รหัสแอดมินเพื่อยืนยันวันและลบชื่อคนที่ลง"}
+  $("ownernote").hidden=!admin;
+}
+$("codeform").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const code=$("admincode").value, st=$("adminstatus");st.classList.remove("err");
+  if(code.length<4){st.textContent="รหัสต้องมีอย่างน้อย 4 ตัว";st.classList.add("err");return}
+  if(!ready){st.textContent="ยังเชื่อมต่อไม่เสร็จ รอสักครู่";st.classList.add("err");return}
+  $("codebtn").disabled=true;
+  try{
+    if(isEventOwner&&!hasCode){
+      const b=writeBatch(fsRef);
+      b.set(doc(fsRef,"events",eventId,"secret","admin"),{hash:await codeHash(eventId,code)});
+      b.update(doc(fsRef,"events",eventId),{hasCode:true});
+      await b.commit();st.textContent="ตั้งรหัสแล้ว";
+    }else{
+      await setDoc(doc(fsRef,"events",eventId,"admins",myId),{code,at:serverTimestamp()});
+      st.textContent="เข้าโหมดแอดมินแล้ว";
+    }
+    $("admincode").value="";
+  }catch(err){console.error(err);
+    st.textContent=err.code==="permission-denied"?"รหัสไม่ถูกต้อง":"ทำไม่สำเร็จ ("+(err.code||"error")+")";st.classList.add("err")}
+  $("codebtn").disabled=false;
+});
 function renderPlan(all){
   const showing=planMode&&plan.size?[...plan].sort():(!planMode&&confirmed.length?confirmed:[]);
   $("plantoggle").textContent=planMode?"เสร็จ":"เลือกวันที่จะนัด";
@@ -393,6 +442,10 @@ function renderPlan(all){
   }
   // ปุ่มยืนยัน (เฉพาะคนสร้างนัด/แอดมิน)
   const cc=canConfirm();
+  $("planpanel").hidden=!(cc||confirmed.length);
+  $("plantoggle").hidden=!cc;
+  if(!cc&&planMode){planMode=false}
+  renderAdmin();
   $("confactions").hidden=!(cc&&((planMode&&plan.size)||confirmed.length));
   $("confirmbtn").hidden=!(planMode&&plan.size);
   $("unconfirmbtn").hidden=!confirmed.length;
@@ -461,7 +514,7 @@ function render(){
     const nm=document.createElement("span");nm.className="nm";nm.textContent=(p.name||"ไม่ระบุชื่อ")+(id===myId?" (เรา)":"");
     const ct=document.createElement("span");ct.className="ct";ct.textContent=(p.dates||[]).filter(d=>d>=todayKey).length+" วัน";
     const right=document.createElement("span");right.className="right";right.appendChild(ct);
-    if((isAdmin||isEventOwner)&&id!==myId&&people[id]){
+    if(isEvAdmin()&&id!==myId&&people[id]){
       const b=document.createElement("button");b.className="rm";b.type="button";b.textContent="ลบ";
       b.onclick=async()=>{
         if(!b.classList.contains("confirm")){b.classList.add("confirm");b.textContent="ยืนยันลบ";setTimeout(()=>{b.classList.remove("confirm");b.textContent="ลบ"},3000);return}
@@ -527,36 +580,17 @@ if(demo){
   })();
   const timer=setTimeout(()=>{if(!loaded){const n=$("notice");n.hidden=false;n.textContent="ยังเชื่อมต่อฐานข้อมูลไม่ได้ เช็กอินเทอร์เน็ต หรือเช็กการตั้งค่า Firebase"}},10000);
   fsRef=fs;
-  const showAdmin=user=>{
-    const g=user.providerData.find(x=>x.providerId==="google.com");
-    if(g){
-      $("adminlogin").hidden=true;$("adminid").hidden=false;$("myuid").value=user.uid;
-      $("adminstatus").textContent=isAdmin?"คุณเป็นแอดมิน ("+(g.email||"Google")+") กดลบชื่อในรายการได้เลย":"เข้าสู่ระบบแล้ว ("+(g.email||"Google")+") แต่ยังไม่ได้เป็นแอดมิน ให้เจ้าของเพิ่มรหัสด้านล่างใน Firestore";
-    }
-  };
-  $("adminlogin").onclick=async()=>{
-    const provider=new GoogleAuthProvider();
-    try{await linkWithPopup(auth.currentUser,provider);showAdmin(auth.currentUser)}
-    catch(e){
-      if(e.code==="auth/credential-already-in-use"){
-        // บัญชี Google นี้เคยผูกกับเครื่องอื่น: สลับไปใช้บัญชีเดิม
-        const cred=GoogleAuthProvider.credentialFromError(e);
-        try{await signInWithCredential(auth,cred);location.reload()}catch(e2){$("adminstatus").textContent="เข้าสู่ระบบไม่ได้ ("+e2.code+")"}
-      }else if(e.code==="auth/operation-not-allowed"){$("adminstatus").textContent="ยังไม่ได้เปิด Google sign-in ใน Firebase Authentication"}
-      else if(e.code!=="auth/popup-closed-by-user"&&e.code!=="auth/cancelled-popup-request"){$("adminstatus").textContent="เข้าสู่ระบบไม่ได้ ("+e.code+")"}
-    }
-  };
-  $("uidcopy").onclick=async()=>{try{await navigator.clipboard.writeText($("myuid").value);$("uidcopy").textContent="คัดลอกแล้ว"}catch(e){$("myuid").select()}setTimeout(()=>$("uidcopy").textContent="คัดลอกรหัส",2000)};
   onAuthStateChanged(auth,user=>{
     if(!user||myId)return;
     if(eventId!=="main")onSnapshot(doc(fs,"events",eventId),ev=>{
       eventExists=ev.exists();
       isEventOwner=eventExists&&ev.data().owner===user.uid;
+      hasCode=eventExists&&ev.data().hasCode===true;
       confirmed=eventExists&&Array.isArray(ev.data().confirmed)?ev.data().confirmed.filter(x=>typeof x==="string").sort():[];
-      $("ownernote").hidden=!isEventOwner;render();
+      render();
     },()=>{});
-    onSnapshot(doc(fs,"admins",user.uid),a=>{isAdmin=a.exists();if(isAdmin)$("adminbox").open=true;showAdmin(user);render()},()=>{});
-    showAdmin(user);
+    if(eventId!=="main")onSnapshot(doc(fs,"events",eventId,"admins",user.uid),a=>{isCodeAdmin=a.exists();render()},()=>{});
+    onSnapshot(doc(fs,"admins",user.uid),a=>{isAdmin=a.exists();render()},()=>{});
     myId=user.uid;ready=true;
     ref=doc(fs,"events",eventId,"people",myId);
     setStatus(myName?"พร้อมแล้ว แตะวันที่ว่างได้เลย":"ใส่ชื่อ แล้วแตะวันที่ว่าง");

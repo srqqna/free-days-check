@@ -2,51 +2,84 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // events/{eventId}/people/{uid}
-    // ทุกคนอ่านได้ แต่ละคนเขียน/ลบได้เฉพาะเอกสารของตัวเอง (uid จาก Anonymous sign-in)
-    match /events/{eventId}/people/{uid} {
-      allow read: if true;
-
-      allow create, update: if request.auth != null
-        && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['name', 'dates', 'updatedAt'])
-        && request.resource.data.name is string
-        && request.resource.data.name.size() > 0
-        && request.resource.data.name.size() <= 40
-        && request.resource.data.dates is list
-        && request.resource.data.dates.size() <= 400;
-
-      // ลบได้: เจ้าของชื่อเอง, แอดมินรวม (admins/{uid}) หรือคนสร้างนัดนี้
-      allow delete: if request.auth != null
-        && (request.auth.uid == uid
-            || exists(/databases/$(database)/documents/admins/$(request.auth.uid))
-            || (exists(/databases/$(database)/documents/events/$(eventId))
-                && get(/databases/$(database)/documents/events/$(eventId)).data.owner == request.auth.uid));
+    function signedIn() { return request.auth != null; }
+    function eventPath(eventId) { return /databases/$(database)/documents/events/$(eventId); }
+    function isGlobalAdmin() {
+      return signedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+    // แอดมินของนัด: คนสร้างนัด, คนที่ใส่รหัสแอดมินถูก, หรือแอดมินรวม
+    function isEventAdmin(eventId) {
+      return signedIn() && (
+        isGlobalAdmin()
+        || exists(/databases/$(database)/documents/events/$(eventId)/admins/$(request.auth.uid))
+        || (exists(eventPath(eventId)) && get(eventPath(eventId)).data.owner == request.auth.uid)
+      );
     }
 
-    // events/{eventId} — ข้อมูลนัด: คนแรกที่สร้างเป็นเจ้าของ แก้ทีหลังไม่ได้
+    // ---------- ข้อมูลนัด ----------
     match /events/{eventId} {
       allow read: if true;
-      allow create: if request.auth != null
-        && request.resource.data.keys().hasOnly(['owner', 'name', 'createdAt'])
+
+      // คนแรกที่สร้างเป็นเจ้าของ
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['owner', 'name', 'hasCode', 'createdAt'])
         && request.resource.data.owner == request.auth.uid
         && request.resource.data.name is string
         && request.resource.data.name.size() <= 60;
-      // คนสร้างนัดหรือแอดมิน ยืนยันวันได้ (แก้ได้เฉพาะช่อง confirmed)
-      allow update: if request.auth != null
-        && (resource.data.owner == request.auth.uid
-            || exists(/databases/$(database)/documents/admins/$(request.auth.uid)))
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['confirmed'])
-        && request.resource.data.confirmed is list
-        && request.resource.data.confirmed.size() <= 60;
-      allow delete: if request.auth != null
-        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+
+      // แอดมินของนัดแก้ได้เฉพาะ confirmed (วันที่ยืนยัน) และ hasCode
+      allow update: if isEventAdmin(eventId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['confirmed', 'hasCode'])
+        && (!('confirmed' in request.resource.data)
+            || (request.resource.data.confirmed is list && request.resource.data.confirmed.size() <= 60));
+
+      allow delete: if isGlobalAdmin();
+
+      // วันว่างของแต่ละคน: ทุกคนอ่านได้ เขียนได้เฉพาะของตัวเอง
+      match /people/{uid} {
+        allow read: if true;
+        allow create, update: if signedIn()
+          && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['name', 'dates', 'updatedAt'])
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.name.size() <= 40
+          && request.resource.data.dates is list
+          && request.resource.data.dates.size() <= 400;
+        allow delete: if signedIn() && (request.auth.uid == uid || isEventAdmin(eventId));
+      }
+
+      // แฮชของรหัสแอดมิน: ไม่มีใครอ่านได้ ตั้งได้ครั้งเดียวโดยคนสร้างนัด
+      match /secret/admin {
+        allow read: if false;
+        allow create: if signedIn()
+          && getAfter(eventPath(eventId)).data.owner == request.auth.uid
+          && request.resource.data.keys().hasOnly(['hash'])
+          && request.resource.data.hash is bytes
+          && request.resource.data.hash.size() == 32;
+        allow update, delete: if false;
+      }
+
+      // คนที่ใส่รหัสแอดมินถูก: สร้างได้เมื่อรหัสตรงกับแฮช
+      match /admins/{uid} {
+        allow read: if signedIn() && request.auth.uid == uid;
+        allow create: if signedIn()
+          && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['code', 'at'])
+          && request.resource.data.code is string
+          && request.resource.data.code.size() >= 4
+          && request.resource.data.code.size() <= 64
+          && exists(/databases/$(database)/documents/events/$(eventId)/secret/admin)
+          && hashing.sha256((eventId + ':' + request.resource.data.code).toUtf8())
+             == get(/databases/$(database)/documents/events/$(eventId)/secret/admin).data.hash;
+        allow update: if false;
+        allow delete: if signedIn() && request.auth.uid == uid;
+      }
     }
 
-    // admins/{uid} — เพิ่มเองใน Firebase Console เท่านั้น
-    // แต่ละคนอ่านได้แค่ของตัวเอง (เพื่อให้เว็บรู้ว่าเราเป็นแอดมินไหม)
+    // ---------- แอดมินรวม (เพิ่มเองใน Firebase Console) ----------
     match /admins/{uid} {
-      allow read: if request.auth != null && request.auth.uid == uid;
+      allow read: if signedIn() && request.auth.uid == uid;
       allow write: if false;
     }
 
