@@ -427,11 +427,28 @@ function renderPlan(all){
     let n=0;for(const id of Object.keys(all)){const m=all[id].map||{};if(confirmed.every(d=>m[d]?.s==="y"))n++}
     $("confcount").textContent="มาได้ครบทุกวัน "+n+" จาก "+Object.keys(all).length+" คน"+(ev.place?" · "+ev.place:"");
     renderExport();
+    const txt=summaryText(all);$("confline").href="https://line.me/R/msg/text/?"+encodeURIComponent(txt);$("confcopy").dataset.text=txt;
   }
   $("confactions").hidden=!(cc&&confirmView&&(plan.size||confirmed.length));
   $("confirmbtn").hidden=!(planMode&&plan.size);
   $("unconfirmbtn").hidden=!confirmed.length;
 }
+// ข้อความสรุปนัดสำหรับส่งเข้ากลุ่ม
+function summaryText(all){
+  const title=ev.title||niceName(eventId),yes=[],part=[],no=[];
+  for(const id of Object.keys(all)){
+    const m=all[id].map||{},nm=all[id].name||"ไม่ระบุชื่อ",miss=confirmed.filter(d=>m[d]?.s!=="y");
+    if(!miss.length)yes.push(nm);else if(miss.length<confirmed.length)part.push(nm+" (ไม่ว่าง "+fmtDates(miss)+")");else no.push(nm);
+  }
+  const lines=["นัด"+title+" "+fmtDates(confirmed)+(ev.time?" "+ev.time:"")+(ev.place?" ที่"+ev.place:"")];
+  lines.push("มาได้ "+yes.length+" คน"+(yes.length?": "+yes.join(", "):""));
+  if(part.length)lines.push("มาได้บางวัน: "+part.join(", "));
+  if(no.length)lines.push("ไม่ว่าง: "+no.join(", "));
+  if(ev.desc)lines.push(ev.desc);
+  lines.push("ดูรายละเอียด: "+linkFor(eventId));
+  return lines.join("\n");
+}
+$("confcopy").onclick=()=>copyText($("confcopy").dataset.text||"",$("confcopy"),"คัดลอกสรุป");
 // ปุ่มเพิ่มลงปฏิทิน
 let exportKey="";
 function renderExport(){

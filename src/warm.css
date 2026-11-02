@@ -312,3 +312,4 @@ body.is-home main{padding-block:var(--s6) var(--s8)}
 .owner-login{margin-top:var(--s7);display:flex;gap:var(--s3);align-items:center;flex-wrap:wrap}
 
 .back{justify-self:start;font-weight:500;padding:0}
+.confshare{margin-top:var(--s2)}
