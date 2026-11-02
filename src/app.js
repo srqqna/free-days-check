@@ -142,7 +142,7 @@ const slotTxt=s=>s?s.split("").map(c=>SLOT_NAME[c]).join("/"):"";
 // ===== หน้าหลัก vs หน้านัด =====
 if(!home){
   $("sitefoot").hidden=false;
-  $("title").textContent=niceName(eventId);document.title=niceName(eventId)+" · เพื่อนว่างวันไหน";
+  $("title").textContent=niceName(eventId);document.title=niceName(eventId)+" · ว่างวันไหน";
   $("eventview").hidden=false;
 }else{
   $("homeview").hidden=false;document.body.classList.add("is-home");
@@ -161,7 +161,7 @@ function render(){
   if(home)return;
   const all=merged(),ids=Object.keys(all),tot=Math.max(ids.length,1),{yes,mb}=counts(all);
   // หัวเรื่อง/รายละเอียด
-  const title=ev.title||niceName(eventId);$("title").textContent=title;document.title=title+" · เพื่อนว่างวันไหน";
+  const title=ev.title||niceName(eventId);$("title").textContent=title;document.title=title+" · ว่างวันไหน";
   const info=[];
   if(ev.place)info.push(`<span><b>สถานที่</b> ${esc(ev.place)}</span>`);
   if(ev.time)info.push(`<span><b>เวลา</b> ${esc(ev.time)}</span>`);
