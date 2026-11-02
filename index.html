@@ -25,6 +25,7 @@ html{-webkit-text-size-adjust:100%}
   --accent:#4fc0c8; --accent-ink:#0b1a1d; --mine:#f2b84b;
   --h0:#1e2833; --h1:#1d3d43; --h2:#22595f; --h3:#2b8088; --h4:#4fc0c8; color-scheme:dark}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.55;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:24px 48px}
 .wrap{max-width:760px;margin:0 auto;display:grid;gap:20px}
@@ -210,7 +211,7 @@ const baseUrl=location.origin+location.pathname;
 const linkFor=ev=>baseUrl+"?event="+encodeURIComponent(ev);
 if(eventId!=="main"){
   const nice=eventId.replace(/-/g," ");
-  $("title").textContent=nice;$("eyebrow").hidden=false;document.title=nice+" · เพื่อนว่างวันไหน";
+  $("title").textContent=nice;$("eyebrow").hidden=false;$("newev").hidden=true;document.title=nice+" · เพื่อนว่างวันไหน";
 }else{$("newev").open=true}
 function showLink(ev){
   const url=linkFor(ev);
