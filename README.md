@@ -1,0 +1,89 @@
+# เพื่อนว่างวันไหน — วิธีขึ้นเว็บ (GitHub Pages + Firebase)
+
+ใช้เวลาประมาณ 10 นาที ฟรีทั้งหมด
+
+ไฟล์ที่ได้:
+- `index.html` — ตัวเว็บ
+- `firestore.rules` — กฎความปลอดภัยของฐานข้อมูล
+- `README.md` — ไฟล์นี้
+
+---
+
+## ส่วนที่ 1: ตั้งค่า Firebase
+
+1. เข้า https://console.firebase.google.com แล้วล็อกอินด้วยบัญชี Google
+2. กด **Create a project** (หรือ Add project) ตั้งชื่อ เช่น `friend-free-days`
+   - Google Analytics: ปิดได้ ไม่จำเป็น
+3. สร้างฐานข้อมูล
+   - เมนูซ้าย **Build > Firestore Database > Create database**
+   - Location: เลือก `asia-southeast1 (Singapore)`
+   - เลือก **Start in production mode** แล้วกด Create
+4. ใส่กฎความปลอดภัย
+   - ในหน้า Firestore ไปที่แท็บ **Rules**
+   - ลบของเดิมทั้งหมด แล้ววางเนื้อหาจากไฟล์ `firestore.rules`
+   - กด **Publish**
+5. เปิดล็อกอินแบบไม่ระบุตัวตน (เพื่อนไม่ต้องสมัครอะไร)
+   - เมนูซ้าย **Build > Authentication > Get started**
+   - แท็บ **Sign-in method** > เลือก **Anonymous** > เปิด **Enable** > Save
+6. เอา config มาใส่เว็บ
+   - กดรูปเฟือง ⚙ ข้าง Project Overview > **Project settings**
+   - เลื่อนลงไปที่ **Your apps** > กดไอคอน **</>** (Web)
+   - ตั้งชื่อแอปอะไรก็ได้ ไม่ต้องติ๊ก Firebase Hosting > กด Register app
+   - จะเห็นโค้ด `const firebaseConfig = { ... }` คัดลอกเฉพาะส่วนนี้
+   - เปิด `index.html` หาบรรทัด `const firebaseConfig = {` ด้านล่างสุดของไฟล์ แล้ววางทับค่า `PASTE_...` ทั้งก้อน
+
+> `apiKey` ของ Firebase ไม่ใช่ความลับ ใส่ในเว็บสาธารณะได้ ความปลอดภัยมาจาก rules ในข้อ 4
+
+---
+
+## ส่วนที่ 2: ขึ้นเว็บด้วย GitHub Pages
+
+1. เข้า https://github.com แล้วล็อกอิน (ไม่มีบัญชีก็สมัครฟรี)
+2. มุมขวาบน กด **+ > New repository**
+   - ชื่อ เช่น `friend-free-days`
+   - เลือก **Public**
+   - กด Create repository
+3. ในหน้า repo ใหม่ กดลิงก์ **uploading an existing file**
+   - ลาก `index.html` ที่ใส่ config แล้วเข้าไป
+   - กด **Commit changes**
+4. เปิด Pages
+   - ไปที่ **Settings > Pages**
+   - Source: **Deploy from a branch**
+   - Branch: `main` / โฟลเดอร์ `/ (root)` > Save
+5. รอ 1–2 นาที รีเฟรชหน้า Settings > Pages จะเห็นลิงก์แบบ
+   `https://<ชื่อผู้ใช้>.github.io/friend-free-days/`
+6. ใส่โดเมนนี้ใน Firebase (กันปัญหาล็อกอิน)
+   - Firebase > Authentication > แท็บ **Settings > Authorized domains > Add domain**
+   - ใส่ `<ชื่อผู้ใช้>.github.io` > Add
+
+เปิดลิงก์ ใส่ชื่อ แตะวันว่าง แล้วกด **คัดลอกลิงก์ส่งเพื่อน** ได้เลย
+
+---
+
+## ใช้หลายนัดพร้อมกัน
+
+ต่อท้ายลิงก์ด้วย `?event=ชื่อนัด` (ใช้อังกฤษ ตัวเลข `-` `_`)
+
+- `https://<ชื่อผู้ใช้>.github.io/friend-free-days/?event=trip-dec`
+- `https://<ชื่อผู้ใช้>.github.io/friend-free-days/?event=bday-mint`
+
+แต่ละลิงก์แยกข้อมูลกันเด็ดขาด
+
+---
+
+## แก้ปัญหา
+
+| อาการ | สาเหตุ / วิธีแก้ |
+|---|---|
+| ขึ้น "ยังไม่ได้ใส่ firebaseConfig" | ยังไม่ได้วาง config ใน `index.html` หรือวางไม่ครบ |
+| ขึ้น `auth/operation-not-allowed` | ยังไม่เปิด Anonymous ใน Authentication (ส่วนที่ 1 ข้อ 5) |
+| ขึ้น `auth/unauthorized-domain` | ยังไม่เพิ่ม `github.io` ใน Authorized domains (ส่วนที่ 2 ข้อ 6) |
+| ขึ้น `permission-denied` | rules ยังไม่ได้ Publish หรือวางไม่ครบ (ส่วนที่ 1 ข้อ 4) |
+| แก้ไฟล์แล้วเว็บไม่เปลี่ยน | รอ 1–2 นาที แล้วรีเฟรชแบบ Ctrl+F5 |
+
+## หมายเหตุ
+
+- ใครมีลิงก์ก็ลงชื่อได้ แต่แก้ได้แค่ของตัวเอง
+- คนที่ล้างข้อมูลเบราว์เซอร์ หรือเปลี่ยนเครื่อง จะกลายเป็นคนใหม่ (วันเดิมยังอยู่ในชื่อเก่า)
+- ลบชื่อคนที่ไม่เกี่ยว: Firebase > Firestore > Data > `events` > ชื่อนัด > `people` > ลบเอกสารที่ต้องการ
+- โควตาฟรี: อ่าน 50,000 / เขียน 20,000 ครั้งต่อวัน กลุ่มเพื่อนใช้ไม่หมดแน่นอน
