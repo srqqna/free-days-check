@@ -310,3 +310,5 @@ body.is-home main{padding-block:var(--s6) var(--s8)}
 .linkbtn.confirm{color:var(--bad);font-weight:600}
 .clear-row{display:flex;flex-wrap:wrap;gap:0 var(--s3);align-items:center}
 .owner-login{margin-top:var(--s7);display:flex;gap:var(--s3);align-items:center;flex-wrap:wrap}
+
+.back{justify-self:start;font-weight:500;padding:0}

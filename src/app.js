@@ -67,6 +67,8 @@ const cleanEvent=v=>(v||"").normalize("NFC").trim().replace(/[\/?#&%\u0000-\u001
 const params=new URLSearchParams(location.search);
 const eventId=cleanEvent(params.get("event"))||"";
 const home=!eventId;
+const confirmView=!home&&params.get("view")==="confirm";   // หน้ายืนยันวัน (แยกจากหน้าจิ้มวัน)
+const confirmUrl=ev=>linkFor(ev)+"&view=confirm";
 const baseUrl=location.origin+location.pathname;
 const linkFor=ev=>baseUrl+"?event="+encodeURIComponent(ev);
 const lineUrl=(title,url)=>"https://line.me/R/msg/text/?"+encodeURIComponent(title+"\nแตะวันที่ว่างได้ที่นี่ "+url);
@@ -78,7 +80,7 @@ let people={};                 // uid -> {name, note, map:{date:{s,slots}}, hasP
 let ev={};                     // ข้อมูลนัด
 let myId=null, myName="", myNote="", my={};    // my: date -> {s:"y"|"m", slots:""}
 let ready=false, loaded=false, eventExists=false, isEventOwner=false, isCodeAdmin=false, isAdmin=false, ownerOk=false, hasCode=false;
-let confirmed=[], planMode=false, plan=new Set();
+let confirmed=[], planMode=confirmView, plan=new Set(), planSeeded=false;
 let rangeMode=false, anchor=null, selDay=null, drag=null, ignoreClick=false;
 let presence={}, fs=null, auth=null;
 let saveTimer=null, saving=false, pending=false;
@@ -142,6 +144,11 @@ const slotTxt=s=>s?s.split("").map(c=>SLOT_NAME[c]).join("/"):"";
 // ===== หน้าหลัก vs หน้านัด =====
 if(!home){
   $("sitefoot").hidden=false;
+  if(confirmView){
+    $("eyebrow").textContent="ยืนยันวัน";$("backlink").hidden=false;$("backlink").href=linkFor(eventId);
+    $("lead").textContent="เลือกวันที่จะนัด จิ้มในปฏิทินหรือพิมพ์ แล้วดูว่าใครมาได้";
+    $("mepanel").hidden=true;$("tools").hidden=true;$("toolhint").hidden=true;
+  }
   $("title").textContent=niceName(eventId);document.title=niceName(eventId)+" · ว่างวันไหน";
   $("eventview").hidden=false;
 }else{
@@ -192,7 +199,7 @@ function render(){
   renderSlotbar();
   $("qrange").classList.toggle("on",rangeMode);
   $("toolhint").textContent=rangeMode?(anchor?"แตะวันสุดท้ายของช่วง":"แตะวันแรกของช่วง"):planMode?"โหมดเลือกวันที่จะนัด: แตะเพื่อเลือก ไม่บันทึกวันว่างของเรา":"กดชื่อวัน (อา–ส) เลือกทั้งคอลัมน์ได้ ในคอมลากเมาส์เลือกหลายวันได้";
-  $("tools").hidden=planMode||!canEdit();
+  $("tools").hidden=planMode||!canEdit();$("toolhint").hidden=confirmView;
 
   renderPlan(all);
 
@@ -281,7 +288,7 @@ $("grid").addEventListener("click",e=>{
   if(ignoreClick){ignoreClick=false;return}
   const b=e.target.closest(".day");if(!b||b.disabled||!b.dataset.k)return;
   const k=b.dataset.k;
-  if(planMode){plan.has(k)?plan.delete(k):plan.add(k);render();return}
+  if(planMode){if(!isEvAdmin())return;plan.has(k)?plan.delete(k):plan.add(k);render();return}
   if(!needEdit())return;
   if(rangeMode){
     if(!anchor){anchor=k;render();return}
@@ -376,14 +383,15 @@ function parseDays(txt){
 }
 function renderPlan(all){
   const cc=isEvAdmin();
-  $("planpanel").hidden=!(cc||confirmed.length);
-  $("plantoggle").hidden=!cc;
-  if(!cc&&planMode)planMode=false;
+  if(confirmView&&cc&&!planSeeded&&eventExists){planSeeded=true;if(!plan.size&&confirmed.length)plan=new Set(confirmed)}
+  $("planpanel").hidden=confirmView?false:!(cc||confirmed.length);
+  // หน้านัด: ปุ่มพาไปหน้ายืนยันวัน / หน้ายืนยันวัน: ไม่มีปุ่มนี้
+  $("plantoggle").hidden=confirmView||!cc;
+  $("plantoggle").textContent=confirmed.length?"เปลี่ยนวันนัด":"ไปหน้ายืนยันวัน";
   const showing=planMode&&plan.size?[...plan].sort():(!planMode&&confirmed.length?confirmed:[]);
-  $("plantoggle").textContent=planMode?"เสร็จ":"เลือกวันที่จะนัด";
-  document.body.classList.toggle("planning",planMode);
-  $("plantools").hidden=!planMode;
-  $("planhint").textContent=planMode?"แตะวันในปฏิทินเพื่อเลือก/เอาออก หรือพิมพ์วันของเดือนที่แสดงอยู่":(confirmed.length?"คนที่มาได้ในวันที่ยืนยันแล้ว":"กดปุ่มแล้วแตะวันในปฏิทิน ดูว่าใครมาได้ ใครไม่ว่างวันไหน");
+  document.body.classList.toggle("planning",planMode&&cc);
+  $("plantools").hidden=!(planMode&&cc);
+  $("planhint").textContent=confirmView?(cc?"จิ้มวันในปฏิทินเพื่อเลือก/เอาออก หรือพิมพ์วันของเดือนที่แสดงอยู่":"หน้านี้สำหรับแอดมิน ใส่รหัสแอดมินในกล่องด้านบนก่อนนะ"):(confirmed.length?"คนที่มาได้ในวันที่ยืนยันแล้ว":"ยังไม่ได้ยืนยันวัน");
   $("confbanner").hidden=!confirmed.length;
   $("sumwrap").hidden=!showing.length;
   const sum=$("summary");sum.innerHTML="";
@@ -420,7 +428,7 @@ function renderPlan(all){
     $("confcount").textContent="มาได้ครบทุกวัน "+n+" จาก "+Object.keys(all).length+" คน"+(ev.place?" · "+ev.place:"");
     renderExport();
   }
-  $("confactions").hidden=!(cc&&((planMode&&plan.size)||confirmed.length));
+  $("confactions").hidden=!(cc&&confirmView&&(plan.size||confirmed.length));
   $("confirmbtn").hidden=!(planMode&&plan.size);
   $("unconfirmbtn").hidden=!confirmed.length;
 }
@@ -451,7 +459,7 @@ function renderExport(){
   };
   box.appendChild(ics);
 }
-$("plantoggle").onclick=()=>{planMode=!planMode;if(planMode&&!plan.size&&confirmed.length)plan=new Set(confirmed);rangeMode=false;anchor=null;$("confmsg").textContent="";render()};
+$("plantoggle").onclick=()=>{location.href=confirmUrl(eventId)};
 $("planapply").onclick=()=>{const got=parseDays($("planinput").value);if(got.size){plan=got;render()}else $("planhint").textContent="อ่านวันที่ไม่ออก ลองพิมพ์แบบ 10-13 หรือ 10,12,15"};
 $("planinput").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();$("planapply").click()}});
 $("planclear").onclick=()=>{plan.clear();$("planinput").value="";render()};
@@ -460,7 +468,7 @@ async function writeEvent(data,msgEl,okText){
   try{await updateDoc(doc(fs,"events",eventId),data);msgEl.textContent=okText;return true}
   catch(e){console.error(e);msgEl.textContent="บันทึกไม่สำเร็จ ("+(e.code||"error")+")";return false}
 }
-$("confirmbtn").onclick=async()=>{const list=[...plan].filter(d=>d>=todayKey).sort().slice(0,60);if(list.length&&await writeEvent({confirmed:list},$("confmsg"),"ยืนยันแล้ว ทุกคนเห็นทันที")){planMode=false;plan.clear();render()}};
+$("confirmbtn").onclick=async()=>{const list=[...plan].filter(d=>d>=todayKey).sort().slice(0,60);if(list.length&&await writeEvent({confirmed:list},$("confmsg"),"ยืนยันแล้ว ทุกคนเห็นทันที")){render()}};
 twoTap($("unconfirmbtn"),"ยกเลิกการยืนยัน","กดอีกครั้งเพื่อยกเลิก",()=>writeEvent({confirmed:[]},$("confmsg"),"ยกเลิกการยืนยันแล้ว"));
 
 // ===== แอดมินนัด =====
@@ -468,10 +476,11 @@ async function codeHash(evId,code){return Bytes.fromUint8Array(await sha256bytes
 let infoFilled=false;
 function renderAdmin(){
   if(home||!eventExists){$("adminbox").hidden=true;return}
-  $("adminbox").hidden=false;
   const admin=isEvAdmin(),ownerNoCode=isEventOwner&&!hasCode;
+  $("adminbox").hidden=confirmView&&admin;
   $("codeform").hidden=admin&&!ownerNoCode;
-  $("infobox").hidden=!admin;
+  $("infobox").hidden=!admin||confirmView;
+  $("toconfirm").hidden=!admin||confirmView;$("toconfirm").href=confirmUrl(eventId);$("toconfirm").textContent=confirmed.length?"เปลี่ยนวันนัด":"ไปหน้ายืนยันวัน";
   if(admin&&!infoFilled){infoFilled=true;
     $("f-title").value=ev.title||niceName(eventId);$("f-place").value=ev.place||"";$("f-time").value=ev.time||"";$("f-desc").value=ev.desc||"";
     $("f-start").value=ev.rangeStart||"";$("f-end").value=ev.rangeEnd||"";$("f-deadline").value=ev.deadline||"";

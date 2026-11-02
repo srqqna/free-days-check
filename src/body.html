@@ -61,6 +61,7 @@
   <!-- ===== หน้านัด ===== -->
   <div id="eventview" class="stack" hidden>
     <div class="page-head">
+      <a class="ghost back" id="backlink" href="#" hidden>‹ กลับไปหน้านัด</a>
       <p class="eyebrow" id="eyebrow">นัด</p>
       <h1 id="title">นัด</h1>
       <div class="evinfo" id="evinfo" hidden></div>
@@ -85,6 +86,7 @@
       <input id="admincode" type="password" minlength="4" maxlength="64" autocomplete="current-password">
       <button class="copy" type="submit" id="codebtn">เข้าโหมดแอดมิน</button>
     </form>
+    <a class="btn2" id="toconfirm" href="#" hidden>ไปหน้ายืนยันวัน</a>
     <details class="small" id="infobox" hidden>
     <summary>แก้รายละเอียดนัด (ชื่อ สถานที่ ช่วงวัน ปิดรับ รายชื่อ)</summary>
     <form class="sub2" id="infoform">
@@ -110,7 +112,7 @@
     </form>
     </details>
   </details>
-  <section class="panel">
+  <section class="panel" id="mepanel">
     <div class="me">
       <label for="myname">ชื่อเรา</label>
       <input id="myname" maxlength="40" placeholder="เช่น ต้น, มิ้นท์" autocomplete="nickname">
