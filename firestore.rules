@@ -32,7 +32,13 @@ service cloud.firestore {
         && request.resource.data.owner == request.auth.uid
         && request.resource.data.name is string
         && request.resource.data.name.size() <= 60;
-      allow update: if false;
+      // คนสร้างนัดหรือแอดมิน ยืนยันวันได้ (แก้ได้เฉพาะช่อง confirmed)
+      allow update: if request.auth != null
+        && (resource.data.owner == request.auth.uid
+            || exists(/databases/$(database)/documents/admins/$(request.auth.uid)))
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['confirmed'])
+        && request.resource.data.confirmed is list
+        && request.resource.data.confirmed.size() <= 60;
       allow delete: if request.auth != null
         && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }

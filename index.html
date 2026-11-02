@@ -11,18 +11,18 @@ html{-webkit-text-size-adjust:100%}
 /* Layout: one column — my-name bar, calendar heatmap (tap to mark), then best days + who's in */
 :root{
   --bg:#f3f5f8; --surface:#ffffff; --ink:#18212e; --muted:#5d6878; --line:#dde2ea;
-  --accent:#0f6f7a; --accent-ink:#ffffff; --mine:#e8a317;
+  --accent:#0f6f7a; --accent-ink:#ffffff; --mine:#e8a317; --plan:#5b46d6; --ok:#1f8a4c; --bad:#c0392b;
   --h0:#eef1f5; --h1:#cfe8e9; --h2:#9fd1d4; --h3:#5fb0b6; --h4:#0f6f7a;
   --font-display:"Sarabun",system-ui,sans-serif;
   --font-body:"Sarabun",system-ui,sans-serif;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#10151c; --surface:#18202a; --ink:#e7ecf2; --muted:#98a3b3; --line:#2a3542;
-  --accent:#4fc0c8; --accent-ink:#0b1a1d; --mine:#f2b84b;
+  --accent:#4fc0c8; --accent-ink:#0b1a1d; --mine:#f2b84b; --plan:#a99cff; --ok:#5fd08f; --bad:#ff8a7a;
   --h0:#1e2833; --h1:#1d3d43; --h2:#22595f; --h3:#2b8088; --h4:#4fc0c8; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#10151c; --surface:#18202a; --ink:#e7ecf2; --muted:#98a3b3; --line:#2a3542;
-  --accent:#4fc0c8; --accent-ink:#0b1a1d; --mine:#f2b84b;
+  --accent:#4fc0c8; --accent-ink:#0b1a1d; --mine:#f2b84b; --plan:#a99cff; --ok:#5fd08f; --bad:#ff8a7a;
   --h0:#1e2833; --h1:#1d3d43; --h2:#22595f; --h3:#2b8088; --h4:#4fc0c8; color-scheme:dark}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -56,6 +56,29 @@ h2{font-family:var(--font-display);font-weight:600;font-size:1.1rem;margin:0}
 .day.past{opacity:.35;cursor:default}
 .day.blank{visibility:hidden}
 .day.today .n{text-decoration:underline;text-underline-offset:3px}
+.day.plan{box-shadow:inset 0 0 0 3px var(--plan)}
+.day.conf::before{content:"✓";position:absolute;top:1px;left:4px;font-size:.62rem;font-weight:700;color:var(--ok)}
+.day.conf{box-shadow:inset 0 0 0 3px var(--ok)}
+.day.plan.conf{box-shadow:inset 0 0 0 3px var(--plan)}
+.planning .grid .day:not(.past){cursor:crosshair}
+.confirm-banner{background:var(--surface);border:2px solid var(--ok);border-radius:14px;padding:12px 16px;display:grid;gap:2px}
+.confirm-banner b{color:var(--ok);font-size:.8rem;letter-spacing:.04em}
+.confirm-banner .when{font-weight:700;font-size:1.15rem}
+.plan-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.plan-tools input{flex:1 1 160px;min-width:0;font:inherit;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)}
+.btn2{font:inherit;font-weight:600;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:8px 14px;cursor:pointer}
+.btn-plan{background:var(--plan);color:var(--surface);border:0}
+.btn-ok{background:var(--ok);color:var(--surface);border:0}
+.btn2.confirm{border-color:var(--bad);color:var(--bad)}
+.sum{display:grid;gap:10px}
+.sum h3{margin:0;font-size:.95rem;display:flex;gap:8px;align-items:baseline}
+.sum h3 .n{font-variant-numeric:tabular-nums}
+.sum .full h3{color:var(--ok)} .sum .part h3{color:var(--mine)} .sum .none h3{color:var(--bad)}
+.sum ul{margin:4px 0 0;padding:0;list-style:none;display:grid;gap:2px}
+.sum li{overflow-wrap:anywhere}
+.sum .miss{color:var(--muted);font-size:.85rem}
+.plandates{font-weight:700;color:var(--plan)}
+.sw-plan{box-shadow:inset 0 0 0 3px var(--plan)} .sw-ok{box-shadow:inset 0 0 0 3px var(--ok)}
 .legend{display:flex;flex-wrap:wrap;gap:14px;font-size:.8rem;color:var(--muted);align-items:center}
 .sw{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:-2px;margin-right:4px}
 .ramp{display:inline-flex;gap:2px;vertical-align:-2px;margin-right:4px}
@@ -102,6 +125,7 @@ button.ghost{font:inherit;font-weight:600;background:none;border:0;cursor:pointe
   </header>
 
   <div class="notice" id="notice" hidden></div>
+  <div class="confirm-banner" id="confbanner" hidden><b>ยืนยันวันแล้ว</b><span class="when" id="confwhen"></span><span class="status" id="confcount"></span></div>
 
   <details class="panel newev" id="newev">
     <summary>สร้างนัดใหม่ + ลิงก์ชวนเพื่อน</summary>
@@ -139,6 +163,30 @@ button.ghost{font:inherit;font-weight:600;background:none;border:0;cursor:pointe
     <div class="legend">
       <span><span class="ramp"><i style="background:var(--h1)"></i><i style="background:var(--h2)"></i><i style="background:var(--h3)"></i><i style="background:var(--h4)"></i></span>ว่างน้อย → ว่างมาก</span>
       <span><span class="sw" style="border:2px solid var(--mine)"></span>วันที่เราว่าง</span>
+      <span><span class="sw sw-plan"></span>วันที่กำลังเลือก</span>
+      <span><span class="sw sw-ok"></span>วันที่ยืนยันแล้ว</span>
+    </div>
+  </section>
+
+  <section class="panel" id="planpanel">
+    <div class="row">
+      <h2>ยืนยันวัน</h2>
+      <button class="btn2 btn-plan" type="button" id="plantoggle">เลือกวันที่จะนัด</button>
+    </div>
+    <p class="status" id="planhint">กดปุ่มแล้วแตะวันในปฏิทิน ดูว่าใครมาได้ ใครไม่ว่างวันไหน</p>
+    <div id="plantools" hidden class="plan-tools">
+      <input id="planinput" placeholder="พิมพ์ เช่น 10-13 หรือ 10,12,15" aria-label="พิมพ์วันที่">
+      <button class="btn2" type="button" id="planapply">ใส่</button>
+      <button class="btn2" type="button" id="planclear">ล้าง</button>
+    </div>
+    <div id="sumwrap" hidden>
+      <p class="sub" style="margin:0">วันที่เลือก: <span class="plandates" id="plandates"></span></p>
+      <div class="sum" id="summary"></div>
+    </div>
+    <div class="row" id="confactions" hidden>
+      <button class="btn2 btn-ok" type="button" id="confirmbtn">ยืนยันวันนี้</button>
+      <button class="btn2" type="button" id="unconfirmbtn" hidden>ยกเลิกการยืนยัน</button>
+      <span class="status" id="confmsg"></span>
     </div>
   </section>
 
@@ -190,7 +238,7 @@ const firebaseConfig = {
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, linkWithPopup, signInWithCredential } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, onSnapshot, setDoc, getDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, onSnapshot, setDoc, getDoc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const TH_MONTH=["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
 const TH_MON_S=["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
@@ -248,6 +296,7 @@ let people={};            // uid -> {name,dates}
 let myId=null, myDates=new Set(), myName="", ready=false, loaded=false;
 const demo=firebaseConfig.apiKey.startsWith("PASTE");
 let isAdmin=false, isEventOwner=false, fsRef=null;
+let eventExists=false, confirmed=[], planMode=false, plan=new Set();
 let saveTimer=null, saving=false, pending=false, ref=null;
 
 try{myName=localStorage.getItem("ffd-name")||""}catch(e){}
@@ -263,6 +312,116 @@ function merged(){
   return all;
 }
 
+// ===== ยืนยันวัน =====
+// แสดงรายการวันแบบย่อ: 10–13 พ.ย. / 10, 12, 15 พ.ย. 2569
+function fmtDates(list){
+  const ds=[...list].sort().map(k=>{const [y,m,d]=k.split("-").map(Number);return new Date(y,m-1,d)});
+  if(!ds.length)return "";
+  const runs=[];let cur=[ds[0],ds[0]];
+  for(let i=1;i<ds.length;i++){
+    const nxt=new Date(cur[1]);nxt.setDate(nxt.getDate()+1);
+    if(ds[i].getTime()===nxt.getTime())cur[1]=ds[i];else{runs.push(cur);cur=[ds[i],ds[i]]}
+  }
+  runs.push(cur);
+  const byMonth=[];
+  for(const [a,b] of runs){
+    const txt=a.getTime()===b.getTime()?String(a.getDate()):
+      (a.getMonth()===b.getMonth()?a.getDate()+"–"+b.getDate():a.getDate()+" "+TH_MON_S[a.getMonth()]+" – "+b.getDate());
+    const mk=b.getFullYear()+"-"+b.getMonth(), last=byMonth[byMonth.length-1];
+    if(last&&last.mk===mk)last.parts.push(txt);else byMonth.push({mk,m:b.getMonth(),y:b.getFullYear(),parts:[txt]});
+  }
+  const yrs=new Set(byMonth.map(x=>x.y));
+  return byMonth.map((x,i)=>x.parts.join(", ")+" "+TH_MON_S[x.m]+(i===byMonth.length-1||yrs.size>1?" "+(x.y+543):"")).join(" · ");
+}
+// แปลงข้อความ "10-13, 20" เป็นวันในเดือนที่กำลังดูอยู่
+function parseDays(txt){
+  const out=new Set(), last=new Date(view.getFullYear(),view.getMonth()+1,0).getDate();
+  for(const part of txt.replace(/[–—~]/g,"-").split(/[,\s]+/)){
+    const m=part.match(/^(\d{1,2})(?:-(\d{1,2}))?$/);if(!m)continue;
+    let a=+m[1], b=m[2]?+m[2]:a;if(a>b)[a,b]=[b,a];
+    for(let d=Math.max(1,a);d<=Math.min(last,b);d++){
+      const dt=new Date(view.getFullYear(),view.getMonth(),d);
+      if(dt>=today)out.add(key(dt));
+    }
+  }
+  return out;
+}
+function canConfirm(){return eventExists&&(isEventOwner||isAdmin)}
+function renderPlan(all){
+  const showing=planMode&&plan.size?[...plan].sort():(!planMode&&confirmed.length?confirmed:[]);
+  $("plantoggle").textContent=planMode?"เสร็จ":"เลือกวันที่จะนัด";
+  document.body.classList.toggle("planning",planMode);
+  $("plantools").hidden=!planMode;
+  $("planhint").textContent=planMode?"แตะวันในปฏิทินเพื่อเลือก/เอาออก หรือพิมพ์วันของเดือนที่แสดงอยู่":
+    (confirmed.length?"ด้านล่างคือคนที่มาได้ในวันที่ยืนยันแล้ว":"กดปุ่มแล้วแตะวันในปฏิทิน ดูว่าใครมาได้ ใครไม่ว่างวันไหน");
+  // แบนเนอร์ด้านบน
+  $("confbanner").hidden=!confirmed.length;
+  // สรุป
+  $("sumwrap").hidden=!showing.length;
+  const sum=$("summary");sum.innerHTML="";
+  let fullN=0;
+  if(showing.length){
+    $("plandates").textContent=fmtDates(showing)+" ("+showing.length+" วัน)";
+    const full=[],part=[],none=[];
+    for(const id of Object.keys(all)){
+      const have=new Set(all[id].dates||[]), name=(all[id].name||"ไม่ระบุชื่อ")+(id===myId?" (เรา)":"");
+      const miss=showing.filter(d=>!have.has(d));
+      if(!miss.length)full.push({name});else if(miss.length===showing.length)none.push({name});else part.push({name,miss});
+    }
+    fullN=full.length;
+    const block=(cls,title,list,withMiss)=>{
+      const div=document.createElement("div");div.className=cls;
+      const h=document.createElement("h3");h.innerHTML=`<span></span><span class="n"></span>`;
+      h.children[0].textContent=title;h.children[1].textContent=list.length+" คน";
+      const ul=document.createElement("ul");
+      if(!list.length){const li=document.createElement("li");li.className="miss";li.textContent="-";ul.appendChild(li)}
+      for(const p of list){
+        const li=document.createElement("li");li.textContent=p.name;
+        if(withMiss){const sp=document.createElement("span");sp.className="miss";sp.textContent=" ไม่ว่าง "+fmtDates(p.miss);li.appendChild(sp)}
+        ul.appendChild(li);
+      }
+      div.append(h,ul);sum.appendChild(div);
+    };
+    block("full","มาได้ทุกวัน",full,false);
+    block("part","ว่างบางวัน",part,true);
+    block("none","ไม่ว่างเลย",none,false);
+  }
+  if(confirmed.length){
+    $("confwhen").textContent=fmtDates(confirmed);
+    let n=0;for(const id of Object.keys(all)){const h=new Set(all[id].dates||[]);if(confirmed.every(d=>h.has(d)))n++}
+    $("confcount").textContent="มาได้ครบทุกวัน "+n+" จาก "+Object.keys(all).length+" คน";
+  }
+  // ปุ่มยืนยัน (เฉพาะคนสร้างนัด/แอดมิน)
+  const cc=canConfirm();
+  $("confactions").hidden=!(cc&&((planMode&&plan.size)||confirmed.length));
+  $("confirmbtn").hidden=!(planMode&&plan.size);
+  $("unconfirmbtn").hidden=!confirmed.length;
+}
+$("plantoggle").onclick=()=>{
+  planMode=!planMode;
+  if(planMode&&!plan.size&&confirmed.length)plan=new Set(confirmed);
+  $("confmsg").textContent="";render();
+  if(planMode)$("planpanel").scrollIntoView({block:"nearest",behavior:"smooth"});
+};
+$("planapply").onclick=()=>{const got=parseDays($("planinput").value);if(got.size){plan=got;render()}else{$("confmsg").textContent="";$("planhint").textContent="อ่านวันที่ไม่ออก ลองพิมพ์แบบ 10-13 หรือ 10,12,15"}};
+$("planinput").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();$("planapply").click()}});
+$("planclear").onclick=()=>{plan.clear();$("planinput").value="";render()};
+async function writeConfirmed(list){
+  const msg=$("confmsg");msg.textContent="กำลังบันทึก…";
+  try{await updateDoc(doc(fsRef,"events",eventId),{confirmed:list});msg.textContent=list.length?"ยืนยันแล้ว ทุกคนเห็นทันที":"ยกเลิกการยืนยันแล้ว";return true}
+  catch(e){console.error(e);msg.textContent="บันทึกไม่สำเร็จ ("+(e.code||"error")+")";return false}
+}
+$("confirmbtn").onclick=async()=>{
+  const list=[...plan].filter(d=>d>=todayKey).sort().slice(0,60);
+  if(list.length&&await writeConfirmed(list)){planMode=false;plan.clear();render()}
+};
+$("unconfirmbtn").onclick=async()=>{
+  const b=$("unconfirmbtn");
+  if(!b.classList.contains("confirm")){b.classList.add("confirm");b.textContent="กดอีกครั้งเพื่อยกเลิก";setTimeout(()=>{b.classList.remove("confirm");b.textContent="ยกเลิกการยืนยัน"},3000);return}
+  b.classList.remove("confirm");b.textContent="ยกเลิกการยืนยัน";
+  await writeConfirmed([]);
+};
+
 function render(){
   const all=merged(), ids=Object.keys(all), tot=Math.max(ids.length,1), m={};
   for(const id of ids)for(const d of (all[id].dates||[]))(m[d]=m[d]||[]).push(all[id].name||"ไม่ระบุชื่อ");
@@ -275,10 +434,11 @@ function render(){
   for(let d=1;d<=days;d++){
     const dt=new Date(view.getFullYear(),view.getMonth(),d), k=key(dt), past=dt<today;
     const c=(m[k]||[]).length, lvl=c?Math.min(4,Math.ceil(c/tot*4)):0;
-    const cls=["day",past?"past":"",myDates.has(k)?"mine":"",k===todayKey?"today":""].join(" ");
+    const cls=["day",past?"past":"",myDates.has(k)?"mine":"",k===todayKey?"today":"",plan.has(k)?"plan":"",confirmed.includes(k)?"conf":""].join(" ");
     h+=`<button class="${cls}" data-k="${k}" data-l="${lvl}" ${past?"disabled":""} aria-pressed="${myDates.has(k)}" aria-label="${d} ${TH_MONTH[view.getMonth()]} ว่าง ${c} คน"><span class="n">${d}</span>${c?`<span class="c">${c} คน</span>`:""}</button>`;
   }
   $("grid").innerHTML=h;
+  renderPlan(all);
 
   const ranked=Object.entries(m).filter(([k])=>k>=todayKey).sort((a,b)=>b[1].length-a[1].length||a[0].localeCompare(b[0])).slice(0,6);
   const best=$("best");best.innerHTML="";
@@ -317,6 +477,7 @@ function render(){
 
 $("grid").addEventListener("click",e=>{
   const b=e.target.closest(".day");if(!b||b.disabled)return;
+  if(planMode){const k=b.dataset.k;plan.has(k)?plan.delete(k):plan.add(k);render();return}
   if(!ready&&!demo){setStatus("ยังเชื่อมต่อไม่เสร็จ รอสักครู่",true);return}
   const k=b.dataset.k;myDates.has(k)?myDates.delete(k):myDates.add(k);
   if(demo)myId="local";
@@ -389,7 +550,9 @@ if(demo){
   onAuthStateChanged(auth,user=>{
     if(!user||myId)return;
     if(eventId!=="main")onSnapshot(doc(fs,"events",eventId),ev=>{
-      isEventOwner=ev.exists()&&ev.data().owner===user.uid;
+      eventExists=ev.exists();
+      isEventOwner=eventExists&&ev.data().owner===user.uid;
+      confirmed=eventExists&&Array.isArray(ev.data().confirmed)?ev.data().confirmed.filter(x=>typeof x==="string").sort():[];
       $("ownernote").hidden=!isEventOwner;render();
     },()=>{});
     onSnapshot(doc(fs,"admins",user.uid),a=>{isAdmin=a.exists();if(isAdmin)$("adminbox").open=true;showAdmin(user);render()},()=>{});
