@@ -87,6 +87,7 @@ details summary::-webkit-details-marker{display:none}
 details summary::before{content:"+";color:var(--accent);font-size:1.2rem;line-height:1;width:14px}
 details[open] summary::before{content:"–"}
 details[open] summary{margin-bottom:6px}
+details.panel:not([open]){display:block;padding-block:16px}
 .linkout{display:grid;gap:8px}
 #evlink{font-size:.85rem;color:var(--slate)}
 
@@ -149,6 +150,7 @@ details[open] summary{margin-bottom:6px}
 ol.best,ul.people{margin:0;padding:0;list-style:none;display:grid}
 ol.best li{display:grid;grid-template-columns:3.2rem 1fr;gap:0 12px;padding:10px 0;border-bottom:1px solid var(--line)}
 ol.best li:last-child,ul.people li:last-child{border-bottom:0}
+ol.best li.empty{display:block}
 .best .k{font-variant-numeric:tabular-nums;color:var(--accent);font-weight:700;grid-row:span 2}
 .best .d{font-weight:600;color:var(--ink)}
 .best .who{grid-column:2;font-size:.85rem;color:var(--slate)}
@@ -222,6 +224,15 @@ ul.people li{display:flex;justify-content:space-between;gap:8px;align-items:cent
   </section>
 
   <div class="stack" id="eventview" hidden>
+  <details class="panel admin" id="adminbox" hidden>
+    <summary>แอดมินนัดนี้</summary>
+    <p class="status" id="adminstatus">ใส่รหัสแอดมินเพื่อยืนยันวันและลบชื่อคนที่ลง</p>
+    <form class="me" id="codeform">
+      <label for="admincode" id="codelabel">รหัสแอดมิน</label>
+      <input id="admincode" type="password" minlength="4" maxlength="64" autocomplete="current-password">
+      <button class="copy" type="submit" id="codebtn">เข้าโหมดแอดมิน</button>
+    </form>
+  </details>
 
   <section class="panel">
     <div class="me">
@@ -280,15 +291,6 @@ ul.people li{display:flex;justify-content:space-between;gap:8px;align-items:cent
     </section>
   </div>
 
-  <details class="panel admin" id="adminbox" hidden>
-    <summary>แอดมินนัดนี้</summary>
-    <p class="status" id="adminstatus">ใส่รหัสแอดมินเพื่อยืนยันวันและลบชื่อคนที่ลง</p>
-    <form class="me" id="codeform">
-      <label for="admincode" id="codelabel">รหัสแอดมิน</label>
-      <input id="admincode" type="password" minlength="4" maxlength="64" autocomplete="current-password">
-      <button class="copy" type="submit" id="codebtn">เข้าโหมดแอดมิน</button>
-    </form>
-  </details>
   </div>
 </div>
 
