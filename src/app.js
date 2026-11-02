@@ -140,12 +140,13 @@ const fmtDay=k=>{const d=fromKey(k);return TH_DOW_L[d.getDay()]+" "+d.getDate()+
 const slotTxt=s=>s?s.split("").map(c=>SLOT_NAME[c]).join("/"):"";
 
 // ===== หน้าหลัก vs หน้านัด =====
+const navLinks=home?[["#newev","สร้างนัด"],["#how","ใช้ยังไง"]]:[["#calendar","ปฏิทิน"],["#summaryside","สรุป"]];
+$("sitenav").innerHTML=navLinks.map(([h,t])=>`<a href="${h}">${t}</a>`).join("");
 if(!home){
-  $("title").textContent=niceName(eventId);$("eyebrow").hidden=false;document.title=niceName(eventId)+" · เพื่อนว่างวันไหน";
+  $("title").textContent=niceName(eventId);document.title=niceName(eventId)+" · เพื่อนว่างวันไหน";
   $("eventview").hidden=false;
 }else{
-  $("newev").hidden=false;$("ownerview").hidden=false;
-  $("lead").textContent="สร้างนัด แล้วส่งลิงก์ให้เพื่อนแตะวันที่ว่าง";
+  $("homeview").hidden=false;
 }
 
 // ===== วาดหน้า =====
@@ -480,7 +481,7 @@ function renderAdmin(){
   if(ownerNoCode){$("codelabel").textContent="ตั้งรหัสแอดมิน";$("codebtn").textContent="ตั้งรหัส";$("adminstatus").textContent="นัดนี้ยังไม่มีรหัสแอดมิน ตั้งไว้เผื่อเปลี่ยนเครื่อง"}
   else if(admin)$("adminstatus").textContent="คุณเป็นแอดมินของนัดนี้ ยืนยันวัน แก้รายละเอียด และลบชื่อคนที่ลงได้";
   else{$("codelabel").textContent="รหัสแอดมิน";$("codebtn").textContent="เข้าโหมดแอดมิน";if(!$("adminstatus").classList.contains("err"))$("adminstatus").textContent="ใส่รหัสแอดมินเพื่อยืนยันวันและลบชื่อคนที่ลง"}
-  $("ownernote").hidden=!admin;
+  $("ownernote").hidden=!admin;$("ownernote").textContent="คุณเป็นแอดมินของนัดนี้ ยืนยันวัน แก้รายละเอียด และลบชื่อคนที่ลงได้";
 }
 $("codeform").addEventListener("submit",async e=>{
   e.preventDefault();
@@ -621,7 +622,7 @@ $("ownerlogin").onclick=async()=>{
 };
 $("signout").onclick=async()=>{await signOut(auth);location.reload()};
 function loadEvents(){
-  const ul=$("evlist");ul.hidden=false;$("ownerhead").hidden=false;$("ownerlogin").hidden=true;
+  const ul=$("evlist");$("ownerview").hidden=false;ul.hidden=false;$("ownerhead").hidden=false;$("ownerlogin").hidden=true;
   onSnapshot(collection(fs,"events"),snap=>{
     const evs=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
     $("evcount").textContent="("+evs.length+")";
@@ -679,7 +680,7 @@ onAuthStateChanged(auth,async user=>{
   if(await checkOwner(user))isAdmin=true;
   if(home){
     ready=true;loaded=true;clearTimeout(timer);
-    if(ownerOk)loadEvents();else if(!user.isAnonymous){$("ownerhead").hidden=false;$("ownerlogin").hidden=true}
+    if(ownerOk)loadEvents();else if(!user.isAnonymous){$("ownerview").hidden=false;$("ownerhead").hidden=false;$("ownerlogin").hidden=true}
     return;
   }
   onSnapshot(doc(fs,"events",eventId),s=>{
