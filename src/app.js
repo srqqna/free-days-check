@@ -15,7 +15,7 @@ const OWNER_HASH = "1675e5cce02c5a97bebc836cba92ea1fa9b2e10bcdd50bb8f2e6e87a2710
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, onSnapshot, setDoc, getDoc, getDocs, updateDoc, deleteDoc, writeBatch, Bytes, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, query, where, collection, doc, onSnapshot, setDoc, getDoc, getDocs, updateDoc, deleteDoc, writeBatch, Bytes, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // ===== ค่าคงที่และตัวช่วย =====
 const TH_MONTH=["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
@@ -57,7 +57,7 @@ function twoTap(btn,label,confirmLabel,fn){
 
 // ===== ธีม =====
 const themeNow=()=>document.documentElement.dataset.theme||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");
-function paintTheme(){const d=themeNow()==="dark";$("themeicon").textContent=d?"☀":"☾";$("themebtn").title=d?"เปลี่ยนเป็นโหมดสว่าง":"เปลี่ยนเป็นโหมดมืด"}
+function paintTheme(){const d=themeNow()==="dark",l=d?"สลับโหมดสว่าง":"สลับโหมดมืด";$("themeicon").textContent=d?"☀":"☾";$("themebtn").title=l;$("themebtn").setAttribute("aria-label",l)}
 $("themebtn").onclick=()=>{const t=themeNow()==="dark"?"light":"dark";document.documentElement.dataset.theme=t;try{localStorage.setItem("ffd-theme",t)}catch(e){}paintTheme()};
 matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change",paintTheme);
 paintTheme();
@@ -140,13 +140,12 @@ const fmtDay=k=>{const d=fromKey(k);return TH_DOW_L[d.getDay()]+" "+d.getDate()+
 const slotTxt=s=>s?s.split("").map(c=>SLOT_NAME[c]).join("/"):"";
 
 // ===== หน้าหลัก vs หน้านัด =====
-const navLinks=home?[["#newev","สร้างนัด"],["#how","ใช้ยังไง"]]:[["#calendar","ปฏิทิน"],["#summaryside","สรุป"]];
-$("sitenav").innerHTML=navLinks.map(([h,t])=>`<a href="${h}">${t}</a>`).join("");
 if(!home){
+  $("sitefoot").hidden=false;
   $("title").textContent=niceName(eventId);document.title=niceName(eventId)+" · เพื่อนว่างวันไหน";
   $("eventview").hidden=false;
 }else{
-  $("homeview").hidden=false;
+  $("homeview").hidden=false;document.body.classList.add("is-home");
 }
 
 // ===== วาดหน้า =====
@@ -192,7 +191,7 @@ function render(){
   $("hols").hidden=!holsHere.length;$("hols").textContent="วันหยุด: "+holsHere.join(", ");
   renderSlotbar();
   $("qrange").classList.toggle("on",rangeMode);
-  $("toolhint").textContent=rangeMode?(anchor?"แตะวันสุดท้ายของช่วง":"แตะวันแรกของช่วง"):planMode?"โหมดเลือกวันที่จะนัด: แตะเพื่อเลือก ไม่บันทึกวันว่างของเรา":"กดชื่อวัน (อา–ส) เพื่อเลือกทั้งคอลัมน์ คอมพิวเตอร์ลากเมาส์เลือกหลายวันได้";
+  $("toolhint").textContent=rangeMode?(anchor?"แตะวันสุดท้ายของช่วง":"แตะวันแรกของช่วง"):planMode?"โหมดเลือกวันที่จะนัด: แตะเพื่อเลือก ไม่บันทึกวันว่างของเรา":"กดชื่อวัน (อา–ส) เลือกทั้งคอลัมน์ได้ ในคอมลากเมาส์เลือกหลายวันได้";
   $("tools").hidden=planMode||!canEdit();
 
   renderPlan(all);
@@ -478,10 +477,10 @@ function renderAdmin(){
     $("f-start").value=ev.rangeStart||"";$("f-end").value=ev.rangeEnd||"";$("f-deadline").value=ev.deadline||"";
     $("f-expected").value=(ev.expected||[]).join(", ");
   }
-  if(ownerNoCode){$("codelabel").textContent="ตั้งรหัสแอดมิน";$("codebtn").textContent="ตั้งรหัส";$("adminstatus").textContent="นัดนี้ยังไม่มีรหัสแอดมิน ตั้งไว้เผื่อเปลี่ยนเครื่อง"}
-  else if(admin)$("adminstatus").textContent="คุณเป็นแอดมินของนัดนี้ ยืนยันวัน แก้รายละเอียด และลบชื่อคนที่ลงได้";
-  else{$("codelabel").textContent="รหัสแอดมิน";$("codebtn").textContent="เข้าโหมดแอดมิน";if(!$("adminstatus").classList.contains("err"))$("adminstatus").textContent="ใส่รหัสแอดมินเพื่อยืนยันวันและลบชื่อคนที่ลง"}
-  $("ownernote").hidden=!admin;$("ownernote").textContent="คุณเป็นแอดมินของนัดนี้ ยืนยันวัน แก้รายละเอียด และลบชื่อคนที่ลงได้";
+  if(ownerNoCode){$("codelabel").textContent="ตั้งรหัสแอดมิน";$("codebtn").textContent="ตั้งรหัส";$("adminstatus").textContent="นัดนี้ยังไม่มีรหัสแอดมิน ตั้งไว้หน่อย เผื่อเปลี่ยนเครื่อง"}
+  else if(admin)$("adminstatus").textContent="เราเป็นแอดมินนัดนี้ ยืนยันวัน แก้รายละเอียด ลบชื่อได้";
+  else{$("codelabel").textContent="รหัสแอดมิน";$("codebtn").textContent="เข้าโหมดแอดมิน";if(!$("adminstatus").classList.contains("err"))$("adminstatus").textContent="มีรหัสแอดมินก็ใส่ตรงนี้ จะยืนยันวันกับลบชื่อได้"}
+  $("ownernote").hidden=!admin;$("ownernote").textContent="เราเป็นแอดมินนัดนี้";
 }
 $("codeform").addEventListener("submit",async e=>{
   e.preventDefault();
@@ -583,28 +582,30 @@ const checkOwner=async u=>{ownerOk=!!u&&!u.isAnonymous&&u.emailVerified&&(await 
 function showLink(evId){const url=linkFor(evId);$("evlink").value=url;$("evopen").href=url;$("evline").href=lineUrl(niceName(evId),url);$("linkout").hidden=false}
 $("evform").addEventListener("submit",async e=>{
   e.preventDefault();
-  const evId=cleanEvent($("evname").value),code=$("evcode").value,msg=$("evmsg");msg.classList.remove("err");
-  if(!evId){$("evname").focus();$("evname").placeholder="พิมพ์ชื่อนัดก่อน";return}
+  const evId=cleanEvent($("evname").value),code=$("evcode").value,msg=$("evmsg");msg.classList.remove("err");msg.textContent="";
+  if(!evId){msg.textContent="ใส่ชื่อนัดก่อนนะ";msg.classList.add("err");$("evname").focus();return}
   if(!ready){msg.textContent="ยังเชื่อมต่อไม่เสร็จ รอสักครู่แล้วกดอีกครั้ง";msg.classList.add("err");return}
   $("evsubmit").disabled=true;
   try{
     const evRef=doc(fs,"events",evId),snap=await getDoc(evRef);
-    if(snap.exists()&&snap.data().owner!==myId){msg.textContent="ชื่อนัดนี้มีคนสร้างไว้แล้ว ถ้าจะสร้างนัดใหม่ให้ใช้ชื่ออื่น (ลิงก์ด้านล่างคือนัดเดิม)";msg.classList.add("err")}
+    if(snap.exists()&&snap.data().owner!==myId){msg.textContent="ชื่อนี้มีคนใช้แล้ว ลองชื่ออื่นดู (ลิงก์ข้างล่างคือนัดเดิม)";msg.classList.add("err")}
     else{
       if(!snap.exists()){
-        if(code.length<4){msg.textContent="ตั้งรหัสแอดมินอย่างน้อย 4 ตัว";msg.classList.add("err");$("evcode").focus();$("evsubmit").disabled=false;return}
+        if(code.length<4){msg.textContent="รหัสแอดมินต้องมีอย่างน้อย 4 ตัว";msg.classList.add("err");$("evcode").focus();$("evsubmit").disabled=false;return}
         const b=writeBatch(fs);
         b.set(evRef,{owner:myId,name:evId,hasCode:true,createdAt:serverTimestamp()});
         b.set(doc(fs,"events",evId,"secret","admin"),{hash:await codeHash(evId,code),code});
         await b.commit();$("evcode").value="";
       }
-      msg.textContent="สร้างนัดแล้ว ส่งลิงก์ให้เพื่อนได้เลย จำรหัสแอดมินไว้ใช้ยืนยันวัน";
+      msg.textContent="ได้ลิงก์แล้ว ส่งเข้ากลุ่มได้เลย";remember(evId,niceName(evId),true);
     }
     showLink(evId);
   }catch(err){console.error(err);msg.textContent="สร้างนัดไม่สำเร็จ ("+(err.code||"error")+") ลองใหม่อีกครั้ง";msg.classList.add("err")}
   $("evsubmit").disabled=false;
 });
 $("evcopy").onclick=()=>copyText($("evlink").value,$("evcopy"),"คัดลอกลิงก์");
+$("evcode-toggle").onclick=()=>{const i=$("evcode"),b=$("evcode-toggle"),show=i.type==="password";i.type=show?"text":"password";b.textContent=show?"ซ่อน":"แสดง";b.setAttribute("aria-pressed",String(show));b.setAttribute("aria-label",show?"ซ่อนรหัส":"แสดงรหัส");i.focus()};
+if(home&&(params.has("admin")))$("ownerloginrow").hidden=false;
 
 // --- หน้าหลัก: เจ้าของเว็บ ---
 $("ownerlogin").onclick=async()=>{
@@ -620,24 +621,58 @@ $("ownerlogin").onclick=async()=>{
     st.classList.add("err");
   }
 };
-$("signout").onclick=async()=>{await signOut(auth);location.reload()};
+$("signout").onclick=async()=>{
+  const b=$("signout");
+  if(!b.classList.contains("confirm")){b.classList.add("confirm");b.textContent="ยืนยัน ล้างเลย";$("signouthelp").hidden=false;setTimeout(()=>{b.classList.remove("confirm");b.textContent="ล้างข้อมูลในเครื่องนี้";$("signouthelp").hidden=true},5000);return}
+  try{for(const k of Object.keys(localStorage))if(k.startsWith("ffd-"))localStorage.removeItem(k)}catch(e){}
+  try{await signOut(auth)}catch(e){}
+  location.reload();
+};
+// นัดที่เคยเปิด/สร้างในเครื่องนี้
+function localEvents(){try{return JSON.parse(localStorage.getItem("ffd-events")||"[]").filter(x=>x&&x.id)}catch(e){return []}}
+function remember(id,title,mine){
+  try{const l=localEvents().filter(x=>x.id!==id);l.unshift({id,title:title||niceName(id),mine:!!mine||!!localEvents().find(x=>x.id===id&&x.mine),at:Date.now()});localStorage.setItem("ffd-events",JSON.stringify(l.slice(0,30)))}catch(e){}
+}
+function forget(id){try{localStorage.setItem("ffd-events",JSON.stringify(localEvents().filter(x=>x.id!==id)))}catch(e){}}
+// เจ้าของเว็บเห็นทุกนัด คนทั่วไปเห็นนัดที่ตัวเองสร้าง + เคยเปิดในเครื่องนี้
+function loadMyEvents(){
+  const owned={};let ownedReady=false;const details={};
+  const draw=()=>{
+    const ids=new Set([...Object.keys(owned),...localEvents().map(x=>x.id)]);
+    const evs=[...ids].map(id=>{const loc=localEvents().find(x=>x.id===id)||{};const d=owned[id]||details[id];return d===null?null:{id,...(d||{}),_mine:!!owned[id]||loc.mine,_at:loc.at||0,_title:loc.title}}).filter(Boolean)
+      .sort((a,b)=>((b.createdAt?.seconds||0)*1000||b._at)-((a.createdAt?.seconds||0)*1000||a._at));
+    renderEventList(evs,false);
+  };
+  onSnapshot(query(collection(fs,"events"),where("owner","==",myId)),snap=>{
+    for(const k of Object.keys(owned))delete owned[k];
+    snap.forEach(d=>{owned[d.id]=d.data()});ownedReady=true;draw();
+  },e=>{console.error(e);ownedReady=true;draw()});
+  for(const x of localEvents())getDoc(doc(fs,"events",x.id)).then(s=>{if(s.exists())details[x.id]=s.data();else{details[x.id]=null;forget(x.id)}draw()}).catch(()=>{});
+}
 function loadEvents(){
-  const ul=$("evlist");$("ownerview").hidden=false;ul.hidden=false;$("ownerhead").hidden=false;$("ownerlogin").hidden=true;
   onSnapshot(collection(fs,"events"),snap=>{
-    const evs=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
-    $("evcount").textContent="("+evs.length+")";
-    ul.innerHTML=evs.length?"":`<li class="empty">ยังไม่มีนัด</li>`;
-    for(const e of evs){
+    renderEventList(snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)),true);
+  },e=>{console.error(e)});
+}
+function renderEventList(evs,ownerMode){
+  const ul=$("evlist");
+  $("ownerview").hidden=!evs.length;
+  $("mylist-h").firstChild.textContent=ownerMode?"นัดทั้งหมด ":"นัดของฉัน ";
+  $("evcount").textContent="("+evs.length+")";
+  ul.innerHTML="";
+  for(const e of evs){
       const li=document.createElement("li"),left=document.createElement("span");left.className="nm";
-      const a=document.createElement("a");a.href=linkFor(e.id);a.textContent=e.title||niceName(e.name||e.id);
+      const a=document.createElement("a");a.href=linkFor(e.id);a.textContent=e.title||e._title||niceName(e.name||e.id);
       const meta=document.createElement("span");meta.className="meta";
       const created=e.createdAt?.toDate?e.createdAt.toDate():null;
-      meta.textContent=(created?"สร้าง "+created.getDate()+" "+TH_MON_S[created.getMonth()]+" "+(created.getFullYear()+543):"")+(e.hasCode?"":" (ไม่มีรหัสแอดมิน)")+(e.deadline?" · ปิดรับ "+fmtDay(e.deadline):"");
+      const seen=!created&&e._at?new Date(e._at):null;
+      meta.textContent=(created?(ownerMode||!e._mine?"สร้าง ":"เราสร้าง ")+created.getDate()+" "+TH_MON_S[created.getMonth()]+" "+(created.getFullYear()+543):seen?"เปิดล่าสุด "+seen.getDate()+" "+TH_MON_S[seen.getMonth()]:"")+(ownerMode&&!e.hasCode?" (ไม่มีรหัสแอดมิน)":"")+(e.deadline?" · ปิดรับ "+fmtDay(e.deadline):"");
       left.append(a,meta);
       if(Array.isArray(e.confirmed)&&e.confirmed.length){const c=document.createElement("span");c.className="meta ok";c.textContent="ยืนยันแล้ว "+fmtDates(e.confirmed);left.appendChild(c)}
       const right=document.createElement("span");right.className="right";
       const ct=document.createElement("span");ct.className="ct";ct.textContent="… คน";right.appendChild(ct);
       getDocs(collection(fs,"events",e.id,"people")).then(ps=>{ct.textContent=ps.size+" คน"}).catch(()=>{ct.textContent=""});
+      if(ownerMode){
       const del=document.createElement("button");del.className="rm";del.type="button";del.textContent="ลบนัด";
       twoTap(del,"ลบนัด","ยืนยันลบทั้งนัด",async()=>{del.disabled=true;del.textContent="กำลังลบ…";try{await deleteEvent(e.id)}catch(err){console.error(err);del.disabled=false;del.textContent="ลบไม่สำเร็จ"}});
       right.appendChild(del);
@@ -667,9 +702,9 @@ function loadEvents(){
         catch(err){console.error(err);codeTxt.textContent="บันทึกไม่ได้ ("+(err.code||"error")+")"}
       };
       codeRow.append(show,edit,codeTxt);left.append(codeRow,form);
+      }
       li.append(left,right);ul.appendChild(li);
-    }
-  },e=>{console.error(e);ul.innerHTML=`<li class="empty">โหลดรายการนัดไม่ได้ (${e.code})</li>`});
+  }
 }
 
 // --- เข้าระบบ + subscribe ---
@@ -680,13 +715,14 @@ onAuthStateChanged(auth,async user=>{
   if(await checkOwner(user))isAdmin=true;
   if(home){
     ready=true;loaded=true;clearTimeout(timer);
-    if(ownerOk)loadEvents();else if(!user.isAnonymous){$("ownerview").hidden=false;$("ownerhead").hidden=false;$("ownerlogin").hidden=true}
+    if(ownerOk){loadEvents();$("ownerloginrow").hidden=true}else loadMyEvents();
     return;
   }
   onSnapshot(doc(fs,"events",eventId),s=>{
     eventExists=s.exists();ev=eventExists?s.data():{};
     isEventOwner=eventExists&&ev.owner===user.uid;hasCode=ev.hasCode===true;
     confirmed=Array.isArray(ev.confirmed)?ev.confirmed.filter(x=>typeof x==="string").sort():[];
+    if(eventExists)remember(eventId,ev.title||niceName(eventId),isEventOwner);
     if(ev.rangeStart&&!render.jumped){render.jumped=true;const d=fromKey(ev.rangeStart);if(d>today)view=new Date(d.getFullYear(),d.getMonth(),1)}
     render();
   },()=>{});

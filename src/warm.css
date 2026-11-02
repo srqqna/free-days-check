@@ -275,3 +275,38 @@ ul.people li{display:flex;justify-content:space-between;gap:var(--s2);align-item
 .foot-links a:hover{color:var(--text)}
 .foot-links .ghost{font-weight:500;color:var(--text-muted);text-decoration:underline}
 #ownerstatus{font-size:.88rem}
+
+/* ---------- home (tool only) ---------- */
+.home{display:grid;justify-items:center}
+.home>*{width:100%;max-width:480px}
+body.is-home main{padding-block:var(--s6) var(--s8)}
+@media (min-width:720px){body.is-home main{padding-block:var(--s8) var(--s9)}}
+.newev{display:grid;gap:var(--s5)}
+.newev h1{font-size:clamp(1.75rem,1.4rem + 1.6vw,2.25rem)}
+.form{display:grid;gap:var(--s4)}
+.f{display:grid;gap:var(--s1)}
+.f label{font-size:.95rem;color:var(--text);font-weight:500}
+.f input{width:100%;min-height:48px;padding:var(--s2) var(--s3);border:1px solid var(--field-border);border-radius:var(--r);background:var(--surface)}
+.pw{position:relative}
+.pw input{padding-right:76px}
+.pw-toggle{position:absolute;top:2px;right:2px;bottom:2px;min-width:64px;border:0;border-left:1px solid var(--border);border-radius:0 var(--r-sm) var(--r-sm) 0;background:var(--surface);color:var(--accent);font:inherit;font-size:.9rem;font-weight:600;cursor:pointer}
+.pw-toggle:hover{background:var(--surface-2)}
+.pw-toggle:active{background:var(--border)}
+.help{font-size:.88rem;color:var(--text-muted)}
+.copy.wide{width:100%;min-height:48px}
+@media (min-width:560px){
+  .f{grid-template-columns:104px 1fr;align-items:center;column-gap:var(--s4)}
+  .f .help{grid-column:2}
+  .copy.wide{width:auto;justify-self:start;margin-left:calc(104px + var(--s4))}
+  #evmsg{margin-left:calc(104px + var(--s4))}
+}
+#evmsg:empty{display:none}
+.tagline{color:var(--text-muted);font-size:.95rem}
+.newev .linkout{padding:var(--s4);background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg)}
+.mylist{display:grid;gap:var(--s3);margin-top:var(--s8)}
+.mylist h2{font-size:1.1rem}
+.linkbtn{font:inherit;font-size:.85rem;color:var(--text-muted);background:none;border:0;padding:0;min-height:44px;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.linkbtn:hover{color:var(--text)}
+.linkbtn.confirm{color:var(--bad);font-weight:600}
+.clear-row{display:flex;flex-wrap:wrap;gap:0 var(--s3);align-items:center}
+.owner-login{margin-top:var(--s7);display:flex;gap:var(--s3);align-items:center;flex-wrap:wrap}

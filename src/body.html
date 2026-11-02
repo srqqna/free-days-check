@@ -2,8 +2,7 @@
 <header class="site-head">
   <div class="head-in">
     <a class="brand" href="./"><svg viewBox="0 0 32 32" aria-hidden="true"><rect x="1" y="1" width="30" height="30" rx="8" fill="var(--accent)"/><rect x="7" y="10" width="18" height="15" rx="2" fill="var(--surface)"/><rect x="7" y="10" width="18" height="4" fill="var(--accent-tint)"/><circle cx="16" cy="19.5" r="2.6" fill="var(--accent)"/></svg><span>เพื่อนว่างวันไหน</span></a>
-    <nav class="site-nav" id="sitenav" aria-label="เมนูหลัก"></nav>
-    <button class="theme" type="button" id="themebtn" aria-label="สลับโหมดมืด/สว่าง"><span id="themeicon" aria-hidden="true"></span></button>
+        <button class="theme" type="button" id="themebtn" aria-label="สลับโหมดมืด"><span id="themeicon" aria-hidden="true"></span></button>
   </div>
 </header>
 
@@ -12,52 +11,51 @@
 <div class="wrap">
 
   <!-- ===== หน้าหลัก ===== -->
-  <div id="homeview" hidden>
-    <section class="hero" aria-labelledby="title-home">
-      <div class="hero-copy">
-        <h1 id="title-home">นัดเพื่อนง่ายขึ้น เมื่อเห็นว่าทุกคนว่างวันไหน</h1>
-        <p class="sub">สร้างนัด ส่งลิงก์ให้เพื่อน แล้วให้แต่ละคนแตะวันที่ว่าง ไม่ต้องสมัคร ไม่ต้องถามทีละคน</p>
-        <div class="hero-cta"><a class="copy" href="#newev">สร้างนัด</a><a class="ghost" href="#how">ใช้ยังไง</a></div>
+  <div id="homeview" class="home" hidden>
+    <section class="newev" id="newev" aria-labelledby="newev-h">
+      <h1 id="newev-h">นัดกันวันไหนดี</h1>
+      <form class="form" id="evform" novalidate>
+        <div class="f">
+          <label for="evname">ชื่อนัด</label>
+          <input id="evname" maxlength="60" placeholder="เช่น ทริปเชียงใหม่" autocomplete="off" required>
+        </div>
+        <div class="f">
+          <label for="evcode">รหัสแอดมิน</label>
+          <div class="pw">
+            <input id="evcode" type="password" minlength="4" maxlength="64" autocomplete="new-password" aria-describedby="evcode-help" required>
+            <button class="pw-toggle" type="button" id="evcode-toggle" aria-pressed="false" aria-label="แสดงรหัส">แสดง</button>
+          </div>
+          <p class="help" id="evcode-help">อย่างน้อย 4 ตัว ไว้ใช้ยืนยันวันกับลบชื่อ จดไว้ด้วยนะ</p>
+        </div>
+        <button class="copy wide" type="submit" id="evsubmit">สร้างลิงก์</button>
+        <p class="status" id="evmsg" role="status"></p>
+      </form>
+      <div class="linkout" id="linkout" hidden>
+        <input id="evlink" readonly aria-label="ลิงก์นัด">
+        <div class="share">
+          <button class="btn2" type="button" id="evcopy">คัดลอกลิงก์</button>
+          <a class="btn-line" id="evline" href="#" target="_blank" rel="noopener">ส่งใน LINE</a>
+          <a class="ghost" id="evopen" href="#">เปิดนัดนี้</a>
+        </div>
       </div>
-  <section class="panel newev" id="newev" aria-labelledby="newev-h">
-    <h2 id="newev-h">สร้างนัดใหม่</h2>
-    <form class="me" id="evform">
-      <label for="evname">ชื่อนัด</label>
-      <input id="evname" maxlength="60" placeholder="เช่น ทริปเชียงใหม่, วันเกิดมิ้นท์" autocomplete="off">
-    </form>
-    <div class="me">
-      <label for="evcode">รหัสแอดมิน</label>
-      <input id="evcode" form="evform" type="password" minlength="4" maxlength="64" placeholder="อย่างน้อย 4 ตัว จำไว้ให้ดี" autocomplete="new-password">
-      <button class="copy" type="submit" form="evform" id="evsubmit">สร้างลิงก์</button>
-    </div>
-    <p class="status" id="evmsg">ใครมีรหัสแอดมิน ยืนยันวันและลบชื่อคนที่ลงได้ ใช้ได้ทุกเครื่อง</p>
-    <div class="linkout" id="linkout" hidden>
-      <input id="evlink" readonly aria-label="ลิงก์ชวนเพื่อน">
-      <div class="share">
-        <button class="copy" type="button" id="evcopy">คัดลอกลิงก์</button>
-        <a class="btn-line" id="evline" href="#" target="_blank" rel="noopener">ส่งใน LINE</a>
-        <a class="ghost" id="evopen" href="#">เปิดหน้านัดนี้</a>
-      </div>
-    </div>
-  </section>
+      <p class="tagline">ตั้งชื่อนัด ส่งลิงก์เข้ากลุ่ม ให้ทุกคนจิ้มวันที่ว่าง</p>
     </section>
 
-    <section class="steps home-sec" id="how" aria-labelledby="how-h">
-      <h2 id="how-h">ใช้ยังไง</h2>
-      <ol>
-        <li><h3>สร้างนัดแล้วส่งลิงก์</h3><p>ตั้งชื่อนัดกับรหัสแอดมิน แล้วส่งลิงก์ทาง LINE หรือให้เพื่อนสแกน QR</p></li>
-        <li><h3>เพื่อนแตะวันที่ว่าง</h3><p>แตะครั้งเดียวคือว่าง สองครั้งคืออาจจะ เลือกช่วงเช้า บ่าย เย็นได้ เห็นของกันและกันทันที</p></li>
-        <li><h3>ยืนยันวันแล้วเพิ่มลงปฏิทิน</h3><p>แอดมินเลือกวันที่คนมาได้มากสุด ทุกคนกดเพิ่มลง Google Calendar หรือ iPhone ได้</p></li>
-      </ol>
+    <section class="mylist" id="ownerview" aria-labelledby="mylist-h" hidden>
+      <div class="row" id="ownerhead">
+        <h2 id="mylist-h">นัดของฉัน <span id="evcount" class="status"></span></h2>
+      </div>
+      <ul class="people evlist" id="evlist"></ul>
+      <div class="clear-row">
+        <button class="linkbtn" type="button" id="signout">ล้างข้อมูลในเครื่องนี้</button>
+        <span class="help" id="signouthelp" hidden>นัดที่สร้างจากเครื่องนี้จะหายจากรายการ (ยังเปิดด้วยลิงก์กับรหัสแอดมินได้) กดอีกครั้งเพื่อล้าง</span>
+      </div>
     </section>
 
-  <section class="panel ownerview" id="ownerview" hidden>
-    <div class="row" id="ownerhead" hidden>
-      <h2>นัดทั้งหมด <span id="evcount" class="status"></span></h2>
-      <button class="btn2" type="button" id="signout">ออกจากระบบ</button>
+    <div class="owner-login" id="ownerloginrow" hidden>
+      <button class="linkbtn" type="button" id="ownerlogin">เข้าสู่ระบบเจ้าของเว็บ</button>
+      <span class="status" id="ownerstatus"></span>
     </div>
-    <ul class="people evlist" id="evlist" hidden></ul>
-  </section>
   </div>
 
   <!-- ===== หน้านัด ===== -->
@@ -67,7 +65,7 @@
       <h1 id="title">นัด</h1>
       <div class="evinfo" id="evinfo" hidden></div>
       <p class="owner" id="ownernote" hidden>คุณเป็นแอดมินของนัดนี้</p>
-      <p class="sub" id="lead">แตะวันที่คุณว่าง แตะอีกครั้งเป็น "อาจจะ" แตะครั้งที่สามเพื่อเอาออก</p>
+      <p class="sub" id="lead">จิ้มวันที่ว่าง จิ้มซ้ำเป็น "อาจจะ" จิ้มอีกทีเอาออก</p>
       <p class="deadline" id="deadline" hidden></p>
       <div class="live off" id="live" hidden><span class="dot" aria-hidden="true"></span><span id="livetext">กำลังเชื่อมต่อ…</span></div>
     </div>
@@ -129,11 +127,11 @@
         <button class="btn2" id="qrbtn" type="button">QR</button>
       </div>
     </div>
-    <div class="qrbox" id="qrbox" hidden><div id="qr"></div><span class="hint">ให้เพื่อนสแกนเพื่อเปิดนัดนี้</span></div>
+    <div class="qrbox" id="qrbox" hidden><div id="qr"></div><span class="hint">ให้เพื่อนสแกนเปิดนัดนี้</span></div>
     <details class="small" id="mymore">
       <summary>ใช้หลายเครื่อง / ลบชื่อฉัน</summary>
       <div class="sub2">
-        <p class="hint">ตั้ง PIN ไว้ เปลี่ยนเครื่องแล้วจะกลับมาแก้วันเดิมได้</p>
+        <p class="hint">ตั้ง PIN ไว้ เปลี่ยนเครื่องแล้วกลับมาแก้วันเดิมได้</p>
         <form class="me" id="pinform">
           <label for="mypin">PIN ของฉัน</label>
           <input id="mypin" type="password" inputmode="numeric" minlength="4" maxlength="12" placeholder="4–12 ตัว" autocomplete="new-password">
@@ -161,7 +159,7 @@
       <button class="btn2" type="button" id="qrange">เลือกเป็นช่วง</button>
       <button class="btn2" type="button" id="qclear">ล้างเดือนนี้</button>
     </div>
-    <p class="hint" id="toolhint">กดชื่อวัน (อา–ส) เพื่อเลือกทั้งคอลัมน์ · คอมพิวเตอร์ลากเมาส์เลือกหลายวันได้</p>
+    <p class="hint" id="toolhint">กดชื่อวัน (อา–ส) เลือกทั้งคอลัมน์ได้ ในคอมลากเมาส์เลือกหลายวันได้</p>
     <div class="grid" id="dows"></div>
     <div class="grid" id="grid"></div>
     <div class="slotbar" id="slotbar" hidden></div>
@@ -214,14 +212,12 @@
 </div>
 </main>
 
-<footer class="site-foot">
+<footer class="site-foot" id="sitefoot" hidden>
   <div class="foot-in">
     <span>เพื่อนว่างวันไหน © 2569</span>
     <div class="foot-links">
       <a href="https://github.com/srqqna/free-days-check#readme" target="_blank" rel="noopener">วิธีใช้</a>
       <a href="./">สร้างนัดใหม่</a>
-      <button class="ghost" type="button" id="ownerlogin">เข้าสู่ระบบเจ้าของเว็บ</button>
-      <span class="status" id="ownerstatus"></span>
     </div>
   </div>
 </footer>
