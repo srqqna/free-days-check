@@ -77,18 +77,40 @@ ul.people li{display:flex;justify-content:space-between;gap:8px;align-items:cent
 @media (prefers-reduced-motion:no-preference){.day{transition:background .15s,border-color .15s}}
 .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
 .copy{font:inherit;font-weight:600;background:var(--accent);color:var(--accent-ink);border:0;border-radius:10px;padding:8px 14px;cursor:pointer}
-#eventname{font-weight:600;color:var(--accent)}
+.eyebrow{margin:0 0 2px;font-size:.8rem;font-weight:600;letter-spacing:.06em;color:var(--accent)}
+.newev summary{cursor:pointer;font-family:var(--font-display);font-weight:600;font-size:1.05rem}
+.newev[open] summary{margin-bottom:4px}
+.linkout{display:grid;gap:10px}
+#evlink{width:100%;min-width:0;font:inherit;font-size:.88rem;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)}
+.ghost{font-weight:600;color:var(--accent);text-decoration:none;padding:8px 4px}
+.ghost:hover{text-decoration:underline}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <h1>เพื่อนว่างวันไหน</h1>
-    <p class="sub" id="eventname" hidden></p>
+    <p class="eyebrow" id="eyebrow" hidden>เพื่อนว่างวันไหน</p>
+    <h1 id="title">เพื่อนว่างวันไหน</h1>
     <p class="sub">ใส่ชื่อ แล้วแตะวันที่ตัวเองว่าง สีเข้ม = ว่างกันหลายคน</p>
   </header>
 
   <div class="notice" id="notice" hidden></div>
+
+  <details class="panel newev" id="newev">
+    <summary>สร้างนัดใหม่ + ลิงก์ชวนเพื่อน</summary>
+    <form class="me" id="evform">
+      <label for="evname">ชื่อนัด</label>
+      <input id="evname" maxlength="60" placeholder="เช่น ทริปเชียงใหม่, วันเกิดมิ้นท์" autocomplete="off">
+      <button class="copy" type="submit">สร้างลิงก์</button>
+    </form>
+    <div class="linkout" id="linkout" hidden>
+      <input id="evlink" readonly aria-label="ลิงก์ชวนเพื่อน">
+      <div class="row">
+        <button class="copy" type="button" id="evcopy">คัดลอกลิงก์</button>
+        <a class="ghost" id="evopen" href="#">เปิดหน้านัดนี้</a>
+      </div>
+    </div>
+  </details>
 
   <section class="panel">
     <div class="me">
@@ -162,8 +184,30 @@ const $=id=>document.getElementById(id);
 
 // แยกหลายนัดด้วย ?event=ชื่อนัด (ตัวอักษรอังกฤษ ตัวเลข - _)
 const params=new URLSearchParams(location.search);
-const eventId=(params.get("event")||"main").replace(/[^A-Za-z0-9_-]/g,"").slice(0,60)||"main";
-if(eventId!=="main"){$("eventname").textContent="นัด: "+eventId;$("eventname").hidden=false}
+// ชื่อนัดใช้ภาษาไทยได้ ตัดอักขระที่ใช้เป็น id ใน Firestore ไม่ได้ออก
+const cleanEvent=v=>(v||"").normalize("NFC").trim().replace(/[\/?#&%\u0000-\u001f]/g,"").replace(/\s+/g,"-").replace(/^\.+|\.+$/g,"").replace(/^__|__$/g,"").slice(0,60);
+const eventId=cleanEvent(params.get("event"))||"main";
+const baseUrl=location.origin+location.pathname;
+const linkFor=ev=>baseUrl+"?event="+encodeURIComponent(ev);
+if(eventId!=="main"){
+  const nice=eventId.replace(/-/g," ");
+  $("title").textContent=nice;$("eyebrow").hidden=false;document.title=nice+" · เพื่อนว่างวันไหน";
+}else{$("newev").open=true}
+function showLink(ev){
+  const url=linkFor(ev);
+  $("evlink").value=url;$("evopen").href=url;$("linkout").hidden=false;
+}
+$("evform").addEventListener("submit",e=>{
+  e.preventDefault();
+  const ev=cleanEvent($("evname").value);
+  if(!ev||ev==="main"){$("evname").focus();$("evname").placeholder="พิมพ์ชื่อนัดก่อน";return}
+  showLink(ev);
+});
+$("evcopy").onclick=async()=>{
+  try{await navigator.clipboard.writeText($("evlink").value);$("evcopy").textContent="คัดลอกแล้ว"}
+  catch(e){$("evlink").select()}
+  setTimeout(()=>$("evcopy").textContent="คัดลอกลิงก์",2000);
+};
 
 let view=new Date(today.getFullYear(),today.getMonth(),1);
 let people={};            // uid -> {name,dates}
