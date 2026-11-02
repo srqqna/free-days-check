@@ -156,7 +156,7 @@ ul.people li{display:flex;justify-content:space-between;gap:8px;align-items:cent
 .people .nm{min-width:0;overflow-wrap:anywhere;color:var(--ink)}
 .people .ct{color:var(--muted);font-size:.88rem;white-space:nowrap;font-variant-numeric:tabular-nums}
 .right{display:flex;gap:12px;align-items:center}
-.rm{font:inherit;font-size:.82rem;border:0;background:none;color:var(--muted);padding:3px 8px;border-radius:8px;cursor:pointer}
+.rm{white-space:nowrap;font:inherit;font-size:.82rem;border:0;background:none;color:var(--muted);padding:3px 8px;border-radius:8px;cursor:pointer}
 .rm:hover{color:var(--bad)}
 .rm.confirm{color:var(--bad);background:var(--bad-tint);font-weight:600}
 .empty{color:var(--muted);font-size:.9rem;padding:8px 0}
@@ -165,6 +165,12 @@ ul.people li{display:flex;justify-content:space-between;gap:8px;align-items:cent
 .evlist .nm a:hover{color:var(--accent);text-decoration:underline;text-underline-offset:3px}
 .evlist .meta{display:block;font-size:.82rem;color:var(--muted)}
 .evlist .meta.ok{color:var(--ok)}
+.evlist li{align-items:flex-start}
+.coderow{display:flex!important;flex-wrap:wrap;gap:4px 8px;align-items:center;margin-top:4px}
+.coderow .rm{padding:2px 0;color:var(--accent)} .coderow .rm:hover{color:var(--accent-hover);text-decoration:underline}
+.codetxt{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.codeedit{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}
+.codeedit input{flex:1 1 160px;min-width:0;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font-size:.88rem}
 .ownerview #ownerlogin{font-weight:500;color:var(--slate)}
 @media (prefers-reduced-motion:no-preference){.day,.copy,.btn2,.nav{transition:background .14s ease-out,box-shadow .14s ease-out,transform .08s ease-out}}
 </style>
@@ -369,7 +375,7 @@ $("evform").addEventListener("submit",async e=>{
         if(code.length<4){msg.textContent="ตั้งรหัสแอดมินอย่างน้อย 4 ตัว";msg.classList.add("err");$("evcode").focus();$("evsubmit").disabled=false;return}
         const b=writeBatch(fsRef);
         b.set(evRef,{owner:myId,name:ev,hasCode:true,createdAt:serverTimestamp()});
-        b.set(doc(fsRef,"events",ev,"secret","admin"),{hash:await codeHash(ev,code)});
+        b.set(doc(fsRef,"events",ev,"secret","admin"),{hash:await codeHash(ev,code),code});
         await b.commit();$("evcode").value="";
       }
       msg.textContent="สร้างนัดแล้ว ส่งลิงก์ให้เพื่อนได้เลย จำรหัสแอดมินไว้ใช้ยืนยันวัน";
@@ -468,7 +474,7 @@ $("codeform").addEventListener("submit",async e=>{
   try{
     if(isEventOwner&&!hasCode){
       const b=writeBatch(fsRef);
-      b.set(doc(fsRef,"events",eventId,"secret","admin"),{hash:await codeHash(eventId,code)});
+      b.set(doc(fsRef,"events",eventId,"secret","admin"),{hash:await codeHash(eventId,code),code});
       b.update(doc(fsRef,"events",eventId),{hasCode:true});
       await b.commit();st.textContent="ตั้งรหัสแล้ว";
     }else{
@@ -706,6 +712,39 @@ if(demo){
           try{await deleteEvent(ev.id)}catch(e){console.error(e);del.disabled=false;del.textContent="ลบไม่สำเร็จ ("+(e.code||"error")+")"}
         };
         right.appendChild(del);
+        // รหัสแอดมิน (เห็นเฉพาะเจ้าของเว็บ)
+        const codeRow=document.createElement("span");codeRow.className="meta coderow";
+        const show=document.createElement("button");show.type="button";show.className="rm";show.textContent="ดูรหัส";
+        const codeTxt=document.createElement("span");codeTxt.className="codetxt";
+        const edit=document.createElement("button");edit.type="button";edit.className="rm";edit.textContent="ตั้งรหัสใหม่";
+        const form=document.createElement("form");form.className="codeedit";form.hidden=true;
+        form.innerHTML=`<input type="text" minlength="4" maxlength="64" placeholder="รหัสใหม่ อย่างน้อย 4 ตัว" aria-label="รหัสแอดมินใหม่"><button class="rm" type="submit">บันทึก</button>`;
+        show.onclick=async()=>{
+          if(codeTxt.textContent){codeTxt.textContent="";show.textContent="ดูรหัส";return}
+          show.disabled=true;
+          try{
+            const sec=await getDoc(doc(fs,"events",ev.id,"secret","admin"));
+            let code=sec.exists()?sec.data().code:"";
+            if(!code){const ad=await getDocs(collection(fs,"events",ev.id,"admins"));ad.forEach(d=>{if(!code&&d.data().code)code=d.data().code})}
+            codeTxt.textContent=code?("รหัส: "+code):(sec.exists()?"ไม่มีรหัสที่อ่านได้ (นัดสร้างก่อนอัปเดต) กดตั้งรหัสใหม่":"ยังไม่มีรหัส กดตั้งรหัสใหม่");
+            show.textContent="ซ่อน";
+          }catch(e){console.error(e);codeTxt.textContent="อ่านรหัสไม่ได้ ("+(e.code||"error")+")"}
+          show.disabled=false;
+        };
+        edit.onclick=()=>{form.hidden=!form.hidden;if(!form.hidden)form.querySelector("input").focus()};
+        form.onsubmit=async e=>{
+          e.preventDefault();
+          const v=form.querySelector("input").value;
+          if(v.length<4){codeTxt.textContent="รหัสต้องมีอย่างน้อย 4 ตัว";return}
+          try{
+            const b=writeBatch(fs);
+            b.set(doc(fs,"events",ev.id,"secret","admin"),{hash:await codeHash(ev.id,v),code:v});
+            if(!ev.hasCode)b.update(doc(fs,"events",ev.id),{hasCode:true});
+            await b.commit();
+            form.hidden=true;form.querySelector("input").value="";codeTxt.textContent="รหัส: "+v;show.textContent="ซ่อน";
+          }catch(err){console.error(err);codeTxt.textContent="บันทึกไม่ได้ ("+(err.code||"error")+")"}
+        };
+        codeRow.append(show,edit,codeTxt);left.append(codeRow,form);
         li.append(left,right);ul.appendChild(li);
       }
     },e=>{console.error(e);ul.innerHTML=`<li class="empty">โหลดรายการนัดไม่ได้ (${e.code}) เช็ก Firestore rules</li>`});

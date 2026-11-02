@@ -53,15 +53,24 @@ service cloud.firestore {
         allow delete: if signedIn() && (request.auth.uid == uid || isEventAdmin(eventId));
       }
 
-      // แฮชของรหัสแอดมิน: ไม่มีใครอ่านได้ ตั้งได้ครั้งเดียวโดยคนสร้างนัด
-      match /secret/admin {
-        allow read: if false;
-        allow create: if signedIn()
-          && getAfter(eventPath(eventId)).data.owner == request.auth.uid
-          && request.resource.data.keys().hasOnly(['hash'])
+      // รหัสแอดมิน: อ่านได้เฉพาะเจ้าของเว็บ
+      // คนสร้างนัดตั้งได้ครั้งเดียว เจ้าของเว็บตั้งใหม่ได้ทุกเมื่อ
+      // hash ต้องตรงกับ code เสมอ (กันใส่ค่าไม่ตรงกัน)
+      function validSecret() {
+        return request.resource.data.keys().hasOnly(['hash', 'code'])
           && request.resource.data.hash is bytes
-          && request.resource.data.hash.size() == 32;
-        allow update: if false;
+          && request.resource.data.hash.size() == 32
+          && (!('code' in request.resource.data)
+              || (request.resource.data.code is string
+                  && request.resource.data.code.size() >= 4
+                  && request.resource.data.code.size() <= 64
+                  && hashing.sha256((eventId + ':' + request.resource.data.code).toUtf8()) == request.resource.data.hash));
+      }
+      match /secret/admin {
+        allow read: if isGlobalAdmin();
+        allow create: if signedIn() && validSecret()
+          && (getAfter(eventPath(eventId)).data.owner == request.auth.uid || isGlobalAdmin());
+        allow update: if isGlobalAdmin() && validSecret();
         allow delete: if isGlobalAdmin();
       }
 
