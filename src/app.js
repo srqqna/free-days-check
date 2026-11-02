@@ -146,7 +146,7 @@ if(!home){
   $("sitefoot").hidden=false;
   if(confirmView){
     $("eyebrow").textContent="ยืนยันวัน";$("backlink").hidden=false;$("backlink").href=linkFor(eventId);
-    $("lead").textContent="เลือกวันที่จะนัด จิ้มในปฏิทินหรือพิมพ์ แล้วดูว่าใครมาได้";
+    $("lead").textContent="จิ้มวันที่จะนัดในปฏิทิน แล้วดูว่าใครมาได้";
     $("mepanel").hidden=true;$("tools").hidden=true;$("toolhint").hidden=true;
   }
   $("title").textContent=niceName(eventId);document.title=niceName(eventId)+" · ว่างวันไหน";
@@ -390,8 +390,8 @@ function renderPlan(all){
   $("plantoggle").textContent=confirmed.length?"เปลี่ยนวันนัด":"ไปหน้ายืนยันวัน";
   const showing=planMode&&plan.size?[...plan].sort():(!planMode&&confirmed.length?confirmed:[]);
   document.body.classList.toggle("planning",planMode&&cc);
-  $("plantools").hidden=!(planMode&&cc);
-  $("planhint").textContent=confirmView?(cc?"จิ้มวันในปฏิทินเพื่อเลือก/เอาออก หรือพิมพ์วันของเดือนที่แสดงอยู่":"หน้านี้สำหรับแอดมิน ใส่รหัสแอดมินในกล่องด้านบนก่อนนะ"):(confirmed.length?"คนที่มาได้ในวันที่ยืนยันแล้ว":"ยังไม่ได้ยืนยันวัน");
+  $("plantools").hidden=!(planMode&&cc&&plan.size);
+  $("planhint").textContent=confirmView?(cc?"จิ้มวันในปฏิทินเพื่อเลือก จิ้มซ้ำเพื่อเอาออก":"หน้านี้สำหรับแอดมิน ใส่รหัสแอดมินในกล่องด้านบนก่อนนะ"):(confirmed.length?"คนที่มาได้ในวันที่ยืนยันแล้ว":"ยังไม่ได้ยืนยันวัน");
   $("confbanner").hidden=!confirmed.length;
   $("sumwrap").hidden=!showing.length;
   const sum=$("summary");sum.innerHTML="";
@@ -460,9 +460,7 @@ function renderExport(){
   box.appendChild(ics);
 }
 $("plantoggle").onclick=()=>{location.href=confirmUrl(eventId)};
-$("planapply").onclick=()=>{const got=parseDays($("planinput").value);if(got.size){plan=got;render()}else $("planhint").textContent="อ่านวันที่ไม่ออก ลองพิมพ์แบบ 10-13 หรือ 10,12,15"};
-$("planinput").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();$("planapply").click()}});
-$("planclear").onclick=()=>{plan.clear();$("planinput").value="";render()};
+$("planclear").onclick=()=>{plan.clear();render()};
 async function writeEvent(data,msgEl,okText){
   msgEl.textContent="กำลังบันทึก…";
   try{await updateDoc(doc(fs,"events",eventId),data);msgEl.textContent=okText;return true}
