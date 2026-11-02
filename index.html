@@ -1285,7 +1285,7 @@ onAuthStateChanged(auth,async user=>{
     if(ownerOk){loadEvents();$("ownerloginrow").hidden=true}else loadMyEvents();
     return;
   }
-  onSnapshot(doc(fs,"events",eventId),s=>{
+  onSnapshot(doc(fs,"events",eventId),{includeMetadataChanges:true},s=>{
     eventExists=s.exists();ev=eventExists?s.data():{};
     isEventOwner=eventExists&&ev.owner===user.uid;hasCode=ev.hasCode===true;
     confirmed=Array.isArray(ev.confirmed)?ev.confirmed.filter(x=>typeof x==="string").sort():[];
